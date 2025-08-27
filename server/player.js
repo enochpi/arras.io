@@ -1,172 +1,188 @@
 /**
- * Player Management Module
- * Handles player creation, updates, and game state management
+ * Enhanced Player Class
+ * Handles player state, stats, and game mechanics
  */
 
 class Player {
-  constructor(id, name) {
+  constructor(id, name = null) {
+    // Basic player info
     this.id = id;
     this.name = name || `Player_${id.substring(0, 6)}`;
     
-    // Position and movement
+    // Position in game world (spawn randomly)
     this.position = {
-      x: Math.random() * 4000, // Random spawn in 4000x4000 world
-      y: Math.random() * 4000
+      x: Math.random() * 3000 + 500, // Spawn away from edges
+      y: Math.random() * 3000 + 500
     };
-    this.rotation = 0; // Tank facing direction
-    this.velocity = { x: 0, y: 0 };
     
-    // Tank stats
+    // Legacy position properties for compatibility
+    this.x = this.position.x;
+    this.y = this.position.y;
+    
+    // Movement properties
+    this.velocity = { x: 0, y: 0 };
+    this.rotation = 0; // Tank facing direction
+    
+    // Player stats
     this.health = 100;
     this.maxHealth = 100;
-    this.shield = 50;
-    this.maxShield = 50;
-    this.energy = 100;
-    this.maxEnergy = 100;
-    
-    // Game progression
     this.score = 0;
     this.level = 1;
-    this.tankClass = 'basic';
-    this.color = this.getRandomColor();
     
-    // Combat stats
+    // Game stats that affect gameplay
     this.stats = {
-      healthRegen: 1,
-      maxHealth: 100,
-      bodyDamage: 10,
-      bulletSpeed: 8,
-      bulletPenetration: 1,
-      bulletDamage: 20,
-      reload: 1, // Shots per second
-      movement: 3 // Movement speed multiplier
+      movement: 1.0,      // Movement speed multiplier
+      bulletSpeed: 5,     // Bullet speed
+      bulletDamage: 25,   // Damage per bullet
+      reload: 1.0,        // Reload speed multiplier
+      maxHealth: 100      // Maximum health
     };
     
-    // Timing
-    this.lastShot = 0;
+    // Visual properties
+    this.color = this.getRandomColor();
+    this.size = 25; // Tank radius
+    
+    // Timing and shooting
     this.lastUpdate = Date.now();
-    this.upgradePoints = 0;
+    this.lastShot = 0;
+    this.joinedAt = Date.now();
+    
+    // Health regeneration
+    this.lastRegen = Date.now();
+    this.regenRate = 2; // HP per second when not taking damage
+    this.regenDelay = 3000; // 3 seconds after taking damage
+    this.lastDamageTime = 0;
   }
 
   /**
-   * Get random tank color
+   * Get a random color for the player's tank
    */
   getRandomColor() {
-    const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD'];
+    const colors = [
+      '#FF6B6B', // Red
+      '#4ECDC4', // Teal  
+      '#45B7D1', // Blue
+      '#96CEB4', // Green
+      '#FFEAA7', // Yellow
+      '#DDA0DD'  // Purple
+    ];
     return colors[Math.floor(Math.random() * colors.length)];
   }
 
   /**
-   * Update player position based on input
-   */
-  updatePosition(input, deltaTime) {
-    if (!input.movement) return;
-
-    const speed = this.stats.movement;
-    const moveX = input.movement.x * speed * deltaTime;
-    const moveY = input.movement.y * speed * deltaTime;
-
-    // Update position with bounds checking
-    this.position.x = Math.max(0, Math.min(4000, this.position.x + moveX));
-    this.position.y = Math.max(0, Math.min(4000, this.position.y + moveY));
-  }
-
-  /**
-   * Update tank rotation based on mouse position
-   */
-  updateRotation(mousePosition) {
-    if (!mousePosition) return;
-    
-    // Calculate angle from tank to mouse (relative to screen center)
-    const angle = Math.atan2(
-      mousePosition.y - 400, // Assuming 800x800 viewport
-      mousePosition.x - 400
-    );
-    this.rotation = angle;
-  }
-
-  /**
    * Check if player can shoot based on reload time
+   * @returns {boolean} True if can shoot
    */
   canShoot() {
-    const reloadTime = 1000 / this.stats.reload; // Convert to milliseconds
+    const reloadTime = 300 / this.stats.reload; // Base 300ms, affected by reload stat
     return Date.now() - this.lastShot >= reloadTime;
   }
 
   /**
-   * Record shot time
+   * Record that player shot (for reload timing)
    */
   recordShot() {
     this.lastShot = Date.now();
   }
 
   /**
-   * Regenerate health and shield over time
+   * Update player position (legacy method for compatibility)
    */
-  regenerate(deltaTime) {
-    const regenRate = this.stats.healthRegen * deltaTime / 1000;
-    
-    // Health regeneration (slower)
-    if (this.health < this.maxHealth) {
-      this.health = Math.min(this.maxHealth, this.health + regenRate * 0.5);
-    }
-    
-    // Shield regeneration (faster)
-    if (this.shield < this.maxShield) {
-      this.shield = Math.min(this.maxShield, this.shield + regenRate);
-    }
+  updatePosition(deltaX, deltaY) {
+    this.position.x = Math.max(25, Math.min(3975, this.position.x + deltaX));
+    this.position.y = Math.max(25, Math.min(3975, this.position.y + deltaY));
+    this.x = this.position.x;
+    this.y = this.position.y;
+    this.lastUpdate = Date.now();
   }
 
   /**
-   * Take damage, shield absorbs first
+   * Update tank rotation based on target angle
    */
-  takeDamage(damage) {
-    if (this.shield > 0) {
-      const shieldDamage = Math.min(this.shield, damage);
-      this.shield -= shieldDamage;
-      damage -= shieldDamage;
-    }
-    
-    if (damage > 0) {
-      this.health -= damage;
-    }
-    
-    return this.health <= 0; // Return true if player died
+  updateRotation(targetAngle) {
+    this.rotation = targetAngle;
   }
 
   /**
-   * Add score and check for level up
+   * Add points to player score and check for level up
+   * @param {number} points - Points to add
+   * @returns {boolean} True if leveled up
    */
   addScore(points) {
     this.score += points;
-    const newLevel = Math.floor(this.score / 1000) + 1;
+    const newLevel = Math.floor(this.score / 500) + 1; // Level up every 500 points
     
     if (newLevel > this.level) {
       this.level = newLevel;
-      this.upgradePoints += 1;
-      return true; // Level up occurred
+      
+      // Increase stats on level up
+      this.stats.maxHealth += 10;
+      this.maxHealth = this.stats.maxHealth;
+      this.health = this.maxHealth; // Full heal on level up
+      this.stats.bulletDamage += 2;
+      this.stats.movement += 0.05;
+      
+      return true; // Indicate level up occurred
     }
     return false;
   }
 
   /**
-   * Get player data for client
+   * Take damage and return true if player died
+   * @param {number} damage - Damage amount
+   * @returns {boolean} True if player died
+   */
+  takeDamage(damage) {
+    this.health -= damage;
+    this.lastDamageTime = Date.now();
+    
+    if (this.health <= 0) {
+      this.health = 0;
+      return true; // Player died
+    }
+    return false;
+  }
+
+  /**
+   * Handle health regeneration
+   * @param {number} deltaTime - Time since last update (ms)
+   */
+  regenerate(deltaTime) {
+    const now = Date.now();
+    
+    // Only regenerate if enough time has passed since last damage
+    if (now - this.lastDamageTime >= this.regenDelay && this.health < this.maxHealth) {
+      const regenAmount = (this.regenRate * deltaTime) / 1000;
+      this.health = Math.min(this.maxHealth, this.health + regenAmount);
+    }
+  }
+
+  /**
+   * Get player data to send to clients
    */
   getClientData() {
     return {
       id: this.id,
       name: this.name,
       position: this.position,
+      x: this.position.x, // Legacy compatibility
+      y: this.position.y, // Legacy compatibility
       rotation: this.rotation,
-      health: this.health,
+      health: Math.round(this.health),
       maxHealth: this.maxHealth,
-      shield: this.shield,
-      maxShield: this.maxShield,
       score: this.score,
       level: this.level,
       color: this.color,
-      tankClass: this.tankClass
+      size: this.size,
+      stats: this.stats
     };
+  }
+
+  /**
+   * Get time since player joined (in seconds)
+   */
+  getPlayTime() {
+    return Math.floor((Date.now() - this.joinedAt) / 1000);
   }
 }
 

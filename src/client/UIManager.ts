@@ -1,134 +1,132 @@
 export class UIManager {
-  private notifications: HTMLElement[] = [];
+  private upgradeMenuVisible = false;
 
   initialize(): void {
-    this.createNotificationContainer();
+    this.createHUD();
+    this.createLeaderboard();
+    this.createMinimap();
+    this.createUpgradeMenu();
     this.setupEventListeners();
   }
 
-  private createNotificationContainer(): void {
-    const container = document.createElement('div');
-    container.id = 'notifications';
-    container.style.cssText = `
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 1000;
-      pointer-events: none;
+  private createHUD(): void {
+    const hud = document.getElementById('hud')!;
+    hud.innerHTML = `
+      <div class="score-display">Score: 0</div>
+      <div class="level-display">Level: 1</div>
+      <div class="tank-class">Class: Basic</div>
+      
+      <div class="stat-bar health-bar">
+        <div class="stat-fill"></div>
+        <div class="stat-text">100/100</div>
+      </div>
+      
+      <div class="stat-bar shield-bar">
+        <div class="stat-fill"></div>
+        <div class="stat-text">50/50</div>
+      </div>
+      
+      <div class="stat-bar energy-bar">
+        <div class="stat-fill"></div>
+        <div class="stat-text">100/100</div>
+      </div>
     `;
-    document.body.appendChild(container);
+  }
+
+  private createLeaderboard(): void {
+    const leaderboard = document.getElementById('leaderboard')!;
+    leaderboard.innerHTML = '<h3>Leaderboard</h3>';
+  }
+
+  private createMinimap(): void {
+    const minimap = document.getElementById('minimap')!;
+    const canvas = document.createElement('canvas');
+    canvas.width = 196;
+    canvas.height = 196;
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    minimap.appendChild(canvas);
+  }
+
+  private createUpgradeMenu(): void {
+    const upgradeMenu = document.getElementById('upgrade-menu')!;
+    upgradeMenu.innerHTML = `
+      <h3>Upgrade Tank</h3>
+      <div class="upgrade-category">
+        <h4>Stats</h4>
+        <div class="upgrade-buttons">
+          <button class="upgrade-btn" data-stat="health">Health Regen</button>
+          <button class="upgrade-btn" data-stat="damage">Bullet Damage</button>
+          <button class="upgrade-btn" data-stat="speed">Movement Speed</button>
+          <button class="upgrade-btn" data-stat="reload">Reload Speed</button>
+        </div>
+      </div>
+      <div class="upgrade-category">
+        <h4>Tank Classes</h4>
+        <div class="upgrade-buttons">
+          <button class="upgrade-btn" data-class="twin">Twin</button>
+          <button class="upgrade-btn" data-class="sniper">Sniper</button>
+          <button class="upgrade-btn" data-class="machinegun">Machine Gun</button>
+          <button class="upgrade-btn" data-class="flank">Flank Guard</button>
+        </div>
+      </div>
+      <button id="close-upgrade-menu">Close</button>
+    `;
   }
 
   private setupEventListeners(): void {
-    // Listen for game events
-    document.addEventListener('player-killed', (e: any) => {
-      this.showNotification(`You killed ${e.detail.playerName}!`, 'success');
+    // Toggle upgrade menu with 'U' key
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyU') {
+        this.toggleUpgradeMenu();
+      }
+      if (e.code === 'Escape') {
+        this.hideUpgradeMenu();
+      }
     });
 
-    document.addEventListener('player-died', () => {
-      this.showNotification('You died! Respawning...', 'error');
+    // Close upgrade menu button
+    document.getElementById('close-upgrade-menu')?.addEventListener('click', () => {
+      this.hideUpgradeMenu();
     });
 
-    document.addEventListener('level-up', (e: any) => {
-      this.showNotification(`Level Up! You are now level ${e.detail.level}`, 'success');
-    });
-  }
-
-  showNotification(message: string, type: 'success' | 'error' | 'info' = 'info'): void {
-    const notification = document.createElement('div');
-    notification.className = `notification ${type}`;
-    notification.textContent = message;
-    notification.style.cssText = `
-      background: ${this.getNotificationColor(type)};
-      color: white;
-      padding: 12px 24px;
-      border-radius: 6px;
-      margin-bottom: 10px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      transform: translateX(-50%) translateY(-20px);
-      opacity: 0;
-      transition: all 0.3s ease;
-      pointer-events: auto;
-      font-weight: bold;
-    `;
-
-    const container = document.getElementById('notifications')!;
-    container.appendChild(notification);
-
-    // Animate in
-    setTimeout(() => {
-      notification.style.transform = 'translateX(-50%) translateY(0)';
-      notification.style.opacity = '1';
-    }, 10);
-
-    // Remove after delay
-    setTimeout(() => {
-      notification.style.transform = 'translateX(-50%) translateY(-20px)';
-      notification.style.opacity = '0';
-      setTimeout(() => {
-        if (notification.parentNode) {
-          notification.parentNode.removeChild(notification);
+    // Upgrade buttons
+    document.querySelectorAll('.upgrade-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const target = e.target as HTMLButtonElement;
+        const stat = target.getAttribute('data-stat');
+        const tankClass = target.getAttribute('data-class');
+        
+        if (stat) {
+          console.log(`Upgrading stat: ${stat}`);
+          // TODO: Send upgrade request to server
         }
-      }, 300);
-    }, 3000);
-
-    this.notifications.push(notification);
-  }
-
-  private getNotificationColor(type: string): string {
-    switch (type) {
-      case 'success': return '#4CAF50';
-      case 'error': return '#F44336';
-      case 'info': return '#2196F3';
-      default: return '#666';
-    }
-  }
-
-  updateConnectionStatus(connected: boolean): void {
-    const statusEl = document.getElementById('connection-status');
-    if (statusEl) {
-      statusEl.textContent = connected ? 'Connected' : 'Disconnected';
-      statusEl.className = connected ? 'connected' : 'disconnected';
-    }
-  }
-
-  showDeathScreen(stats: any): void {
-    const deathScreen = document.createElement('div');
-    deathScreen.id = 'death-screen';
-    deathScreen.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.8);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-    `;
-
-    deathScreen.innerHTML = `
-      <div style="text-align: center; color: white; background: rgba(0,0,0,0.9); padding: 40px; border-radius: 12px;">
-        <h2 style="color: #F44336; margin-bottom: 20px;">You Died!</h2>
-        <div style="margin: 20px 0;">
-          <p>Final Score: ${stats.score.toLocaleString()}</p>
-          <p>Level Reached: ${stats.level}</p>
-          <p>Time Survived: ${stats.timeAlive}</p>
-          <p>Enemies Killed: ${stats.kills}</p>
-        </div>
-        <button id="respawn-btn" style="padding: 12px 24px; background: #4CAF50; border: none; color: white; border-radius: 6px; cursor: pointer; font-size: 16px;">
-          Respawn
-        </button>
-      </div>
-    `;
-
-    document.body.appendChild(deathScreen);
-
-    document.getElementById('respawn-btn')!.addEventListener('click', () => {
-      document.body.removeChild(deathScreen);
-      // Trigger respawn logic
+        
+        if (tankClass) {
+          console.log(`Changing to tank class: ${tankClass}`);
+          // TODO: Send class change request to server
+        }
+      });
     });
+  }
+
+  private toggleUpgradeMenu(): void {
+    if (this.upgradeMenuVisible) {
+      this.hideUpgradeMenu();
+    } else {
+      this.showUpgradeMenu();
+    }
+  }
+
+  private showUpgradeMenu(): void {
+    const upgradeMenu = document.getElementById('upgrade-menu')!;
+    upgradeMenu.style.display = 'block';
+    this.upgradeMenuVisible = true;
+  }
+
+  private hideUpgradeMenu(): void {
+    const upgradeMenu = document.getElementById('upgrade-menu')!;
+    upgradeMenu.style.display = 'none';
+    this.upgradeMenuVisible = false;
   }
 }

@@ -1,311 +1,177 @@
-import { GameState, Player, Projectile, Enemy, Vector2, TANK_CLASSES } from '../shared/types';
-import { Camera } from './Camera';
+import { Player, Projectile } from './GameClient';
+
+export interface Shape {
+  id: string;
+  type: string;
+  position: { x: number; y: number };
+  health: number;
+  maxHealth: number;
+  size: number;
+  color: string;
+}
 
 export class Renderer {
   constructor(private ctx: CanvasRenderingContext2D) {}
 
-  renderBackground(camera: Camera): void {
-    const ctx = this.ctx;
+  renderGrid(worldWidth: number, worldHeight: number): void {
     const gridSize = 50;
     
-    // Fill background
-    ctx.fillStyle = '#2c2c2c';
-    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-
-    // Draw grid
-    ctx.strokeStyle = '#404040';
-    ctx.lineWidth = 1;
-
-    const startX = Math.floor(camera.position.x / gridSize) * gridSize;
-    const startY = Math.floor(camera.position.y / gridSize) * gridSize;
-
-    for (let x = startX; x < camera.position.x + camera.width; x += gridSize) {
-      const screenX = camera.worldToScreen({ x, y: 0 }).x;
-      ctx.beginPath();
-      ctx.moveTo(screenX, 0);
-      ctx.lineTo(screenX, ctx.canvas.height);
-      ctx.stroke();
-    }
-
-    for (let y = startY; y < camera.position.y + camera.height; y += gridSize) {
-      const screenY = camera.worldToScreen({ x: 0, y }).y;
-      ctx.beginPath();
-      ctx.moveTo(0, screenY);
-      ctx.lineTo(ctx.canvas.width, screenY);
-      ctx.stroke();
-    }
-  }
-
-  renderPlayers(players: Map<string, Player>, camera: Camera, currentPlayerId: string | null): void {
-    players.forEach(player => {
-      const screenPos = camera.worldToScreen(player.position);
-      this.drawTank(screenPos, player, player.id === currentPlayerId);
-      this.drawPlayerInfo(screenPos, player);
-    });
-  }
-
-  private drawTank(position: Vector2, player: Player, isCurrentPlayer: boolean): void {
-    const ctx = this.ctx;
-    const size = 25;
-
-    ctx.save();
-    ctx.translate(position.x, position.y);
-
-    // Draw tank body
-    ctx.fillStyle = player.color;
-    ctx.strokeStyle = isCurrentPlayer ? '#FFD700' : '#333';
-    ctx.lineWidth = isCurrentPlayer ? 3 : 2;
+    this.ctx.strokeStyle = '#333';
+    this.ctx.lineWidth = 1;
+    this.ctx.globalAlpha = 0.2;
     
-    ctx.beginPath();
-    ctx.arc(0, 0, size, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    // Draw cannon based on tank class
-    this.drawCannon(player.tankClass, player.rotation);
-
-    // Draw health bar
-    if (player.health < player.maxHealth) {
-      this.drawHealthBar(position, player.health, player.maxHealth, size);
+    // Vertical lines
+    for (let x = 0; x <= worldWidth; x += gridSize) {
+      this.ctx.beginPath();
+      this.ctx.moveTo(x, 0);
+      this.ctx.lineTo(x, worldHeight);
+      this.ctx.stroke();
     }
-
-    ctx.restore();
-  }
-
-  private drawCannon(tankClass: string, rotation: number): void {
-    const ctx = this.ctx;
     
-    ctx.rotate(rotation);
-    ctx.fillStyle = '#666';
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 2;
-
-    switch (tankClass) {
-      case TANK_CLASSES.BASIC:
-        ctx.fillRect(15, -4, 25, 8);
-        ctx.strokeRect(15, -4, 25, 8);
-        break;
-      
-      case TANK_CLASSES.TWIN:
-        ctx.fillRect(15, -6, 25, 4);
-        ctx.strokeRect(15, -6, 25, 4);
-        ctx.fillRect(15, 2, 25, 4);
-        ctx.strokeRect(15, 2, 25, 4);
-        break;
-      
-      case TANK_CLASSES.SNIPER:
-        ctx.fillRect(15, -3, 35, 6);
-        ctx.strokeRect(15, -3, 35, 6);
-        break;
-      
-      case TANK_CLASSES.MACHINE_GUN:
-        ctx.fillRect(15, -5, 20, 10);
-        ctx.strokeRect(15, -5, 20, 10);
-        break;
-      
-      case TANK_CLASSES.FLANK_GUARD:
-        ctx.fillRect(15, -4, 25, 8);
-        ctx.strokeRect(15, -4, 25, 8);
-        ctx.fillRect(-40, -3, 25, 6);
-        ctx.strokeRect(-40, -3, 25, 6);
-        break;
+    // Horizontal lines
+    for (let y = 0; y <= worldHeight; y += gridSize) {
+      this.ctx.beginPath();
+      this.ctx.moveTo(0, y);
+      this.ctx.lineTo(worldWidth, y);
+      this.ctx.stroke();
     }
+    
+    this.ctx.globalAlpha = 1;
   }
 
-  private drawHealthBar(position: Vector2, health: number, maxHealth: number, tankSize: number): void {
-    const ctx = this.ctx;
-    const barWidth = tankSize * 2;
-    const barHeight = 4;
-    const barY = -tankSize - 10;
-
+  renderPlayer(player: Player, isCurrentPlayer: boolean): void {
+    const { x, y } = player.position;
+    
+    this.ctx.save();
+    this.ctx.translate(x, y);
+    this.ctx.rotate(player.rotation);
+    
+    // Tank body (circle)
+    this.ctx.fillStyle = isCurrentPlayer ? '#00B2E1' : '#4CAF50';
+    this.ctx.beginPath();
+    this.ctx.arc(0, 0, 20, 0, Math.PI * 2);
+    this.ctx.fill();
+    
+    // Tank barrel
+    this.ctx.fillStyle = isCurrentPlayer ? '#0082A3' : '#388E3C';
+    this.ctx.fillRect(0, -4, 30, 8);
+    
+    this.ctx.restore();
+    
+    // Health bar
+    const healthBarWidth = 50;
+    const healthBarHeight = 6;
+    const healthPercentage = player.health / player.maxHealth;
+    
     // Background
-    ctx.fillStyle = '#333';
-    ctx.fillRect(-barWidth / 2, barY, barWidth, barHeight);
-
+    this.ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    this.ctx.fillRect(x - healthBarWidth/2, y - 35, healthBarWidth, healthBarHeight);
+    
     // Health
-    const healthPercent = health / maxHealth;
-    ctx.fillStyle = healthPercent > 0.5 ? '#4CAF50' : healthPercent > 0.25 ? '#FF9800' : '#F44336';
-    ctx.fillRect(-barWidth / 2, barY, barWidth * healthPercent, barHeight);
-  }
-
-  private drawPlayerInfo(position: Vector2, player: Player): void {
-    const ctx = this.ctx;
+    this.ctx.fillStyle = healthPercentage > 0.6 ? '#4CAF50' : 
+                        healthPercentage > 0.3 ? '#FF9800' : '#F44336';
+    this.ctx.fillRect(x - healthBarWidth/2, y - 35, healthBarWidth * healthPercentage, healthBarHeight);
     
-    ctx.fillStyle = 'white';
-    ctx.font = '12px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(player.name, position.x, position.y - 45);
-    ctx.fillText(`Lv.${player.level}`, position.x, position.y - 32);
-  }
-
-  renderProjectiles(projectiles: Map<string, Projectile>, camera: Camera): void {
-    projectiles.forEach(projectile => {
-      const screenPos = camera.worldToScreen(projectile.position);
-      this.drawProjectile(screenPos, projectile);
-    });
-  }
-
-  private drawProjectile(position: Vector2, projectile: Projectile): void {
-    const ctx = this.ctx;
+    // Player name
+    this.ctx.fillStyle = '#FFF';
+    this.ctx.font = '14px Arial';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText(player.name, x, y - 40);
     
-    ctx.fillStyle = projectile.color;
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 1;
-    
-    ctx.beginPath();
-    ctx.arc(position.x, position.y, projectile.size, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
+    // Level indicator
+    this.ctx.fillStyle = '#FFD700';
+    this.ctx.font = '12px Arial';
+    this.ctx.fillText(`Lv.${player.level}`, x, y + 35);
   }
 
-  renderEnemies(enemies: Map<string, Enemy>, camera: Camera): void {
-    enemies.forEach(enemy => {
-      const screenPos = camera.worldToScreen(enemy.position);
-      this.drawEnemy(screenPos, enemy);
-    });
+  renderProjectile(projectile: Projectile): void {
+    const { x, y } = projectile.position;
+    
+    // Main bullet
+    this.ctx.fillStyle = '#FFD700';
+    this.ctx.beginPath();
+    this.ctx.arc(x, y, 4, 0, Math.PI * 2);
+    this.ctx.fill();
+    
+    // Glow effect
+    this.ctx.strokeStyle = '#FFA000';
+    this.ctx.lineWidth = 2;
+    this.ctx.globalAlpha = 0.6;
+    this.ctx.beginPath();
+    this.ctx.arc(x, y, 6, 0, Math.PI * 2);
+    this.ctx.stroke();
+    this.ctx.globalAlpha = 1;
   }
 
-  private drawEnemy(position: Vector2, enemy: Enemy): void {
-    const ctx = this.ctx;
+  renderShape(shape: Shape): void {
+    const { x, y } = shape.position;
+    const sides = this.getShapeSides(shape.type);
     
-    ctx.save();
-    ctx.translate(position.x, position.y);
-    ctx.rotate(enemy.rotation);
-
-    // Draw enemy based on type
-    ctx.fillStyle = enemy.color;
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 2;
-
-    switch (enemy.type) {
-      case 'square':
-        ctx.fillRect(-enemy.size/2, -enemy.size/2, enemy.size, enemy.size);
-        ctx.strokeRect(-enemy.size/2, -enemy.size/2, enemy.size, enemy.size);
-        break;
+    this.ctx.save();
+    this.ctx.translate(x, y);
+    
+    // Draw shape
+    this.ctx.fillStyle = shape.color;
+    this.ctx.strokeStyle = this.darkenColor(shape.color);
+    this.ctx.lineWidth = 2;
+    
+    this.drawPolygon(0, 0, shape.size, sides);
+    this.ctx.fill();
+    this.ctx.stroke();
+    
+    this.ctx.restore();
+    
+    // Health bar for damaged shapes
+    if (shape.health < shape.maxHealth) {
+      const barWidth = shape.size * 1.5;
+      const barHeight = 4;
+      const healthPercentage = shape.health / shape.maxHealth;
       
-      case 'triangle':
-        ctx.beginPath();
-        ctx.moveTo(enemy.size/2, 0);
-        ctx.lineTo(-enemy.size/2, -enemy.size/2);
-        ctx.lineTo(-enemy.size/2, enemy.size/2);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-        break;
+      // Background
+      this.ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      this.ctx.fillRect(x - barWidth/2, y - shape.size - 10, barWidth, barHeight);
       
-      case 'pentagon':
-        this.drawPolygon(5, enemy.size/2);
-        break;
-    }
-
-    ctx.restore();
-
-    // Draw health bar for damaged enemies
-    if (enemy.health < enemy.maxHealth) {
-      this.drawHealthBar(position, enemy.health, enemy.maxHealth, enemy.size);
+      // Health
+      this.ctx.fillStyle = healthPercentage > 0.5 ? '#4CAF50' : '#F44336';
+      this.ctx.fillRect(x - barWidth/2, y - shape.size - 10, barWidth * healthPercentage, barHeight);
     }
   }
 
-  private drawPolygon(sides: number, radius: number): void {
-    const ctx = this.ctx;
-    const angle = (Math.PI * 2) / sides;
+  private getShapeSides(type: string): number {
+    switch(type) {
+      case 'triangle': return 3;
+      case 'square': return 4;
+      case 'pentagon': return 5;
+      case 'hexagon': return 6;
+      default: return 3;
+    }
+  }
+
+  private drawPolygon(x: number, y: number, radius: number, sides: number): void {
+    this.ctx.beginPath();
     
-    ctx.beginPath();
     for (let i = 0; i < sides; i++) {
-      const x = Math.cos(i * angle) * radius;
-      const y = Math.sin(i * angle) * radius;
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+      const angle = (i * 2 * Math.PI) / sides - Math.PI / 2;
+      const px = x + Math.cos(angle) * radius;
+      const py = y + Math.sin(angle) * radius;
+      
+      if (i === 0) {
+        this.ctx.moveTo(px, py);
+      } else {
+        this.ctx.lineTo(px, py);
+      }
     }
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
+    
+    this.ctx.closePath();
   }
 
-  renderUI(gameState: GameState, currentPlayerId: string | null): void {
-    if (!currentPlayerId || !gameState.players.has(currentPlayerId)) return;
-
-    const player = gameState.players.get(currentPlayerId)!;
-    this.updateHUD(player);
-    this.updateLeaderboard(gameState.leaderboard, currentPlayerId);
-    this.renderMinimap(gameState, currentPlayerId);
-  }
-
-  private updateHUD(player: Player): void {
-    const hud = document.getElementById('hud')!;
-    hud.innerHTML = `
-      <div class="score-display">Score: ${player.score.toLocaleString()}</div>
-      <div class="level-display">Level: ${player.level}</div>
-      <div class="tank-class">Class: ${player.tankClass}</div>
-      
-      <div class="stat-bar health-bar">
-        <div class="stat-fill" style="width: ${(player.health / player.maxHealth) * 100}%"></div>
-        <div class="stat-text">Health</div>
-      </div>
-      
-      <div class="stat-bar shield-bar">
-        <div class="stat-fill" style="width: ${(player.shield / player.maxShield) * 100}%"></div>
-        <div class="stat-text">Shield</div>
-      </div>
-      
-      <div class="stat-bar energy-bar">
-        <div class="stat-fill" style="width: ${(player.energy / player.maxEnergy) * 100}%"></div>
-        <div class="stat-text">Energy</div>
-      </div>
-    `;
-  }
-
-  private updateLeaderboard(leaderboard: Array<{id: string, name: string, score: number}>, currentPlayerId: string): void {
-    const leaderboardEl = document.getElementById('leaderboard')!;
-    const top10 = leaderboard.slice(0, 10);
+  private darkenColor(color: string): string {
+    // Simple color darkening
+    const hex = color.replace('#', '');
+    const r = Math.max(0, parseInt(hex.substr(0, 2), 16) - 40);
+    const g = Math.max(0, parseInt(hex.substr(2, 2), 16) - 40);
+    const b = Math.max(0, parseInt(hex.substr(4, 2), 16) - 40);
     
-    leaderboardEl.innerHTML = `
-      <h3>Leaderboard</h3>
-      ${top10.map((entry, index) => `
-        <div class="leaderboard-entry ${entry.id === currentPlayerId ? 'current-player' : ''}">
-          <span>${index + 1}. ${entry.name}</span>
-          <span>${entry.score.toLocaleString()}</span>
-        </div>
-      `).join('')}
-    `;
-  }
-
-  private renderMinimap(gameState: GameState, currentPlayerId: string): void {
-    const minimap = document.getElementById('minimap')!;
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d')!;
-    
-    canvas.width = 200;
-    canvas.height = 200;
-    
-    // Clear minimap
-    ctx.fillStyle = '#1a1a1a';
-    ctx.fillRect(0, 0, 200, 200);
-    
-    const scaleX = 200 / gameState.worldBounds.width;
-    const scaleY = 200 / gameState.worldBounds.height;
-    
-    // Draw players
-    gameState.players.forEach(player => {
-      const x = player.position.x * scaleX;
-      const y = player.position.y * scaleY;
-      
-      ctx.fillStyle = player.id === currentPlayerId ? '#FFD700' : player.color;
-      ctx.beginPath();
-      ctx.arc(x, y, 3, 0, Math.PI * 2);
-      ctx.fill();
-    });
-    
-    // Draw enemies
-    gameState.enemies.forEach(enemy => {
-      const x = enemy.position.x * scaleX;
-      const y = enemy.position.y * scaleY;
-      
-      ctx.fillStyle = enemy.color;
-      ctx.fillRect(x - 1, y - 1, 2, 2);
-    });
-    
-    minimap.innerHTML = '';
-    minimap.appendChild(canvas);
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
   }
 }
