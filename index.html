@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Arras.io - Advanced Multiplayer Tank Game</title>
+    <meta property="og:title" content="Arras.io - Advanced Multiplayer Tank Game - Built with ChatAndBuild" />
+    <meta property="og:description" content="Advanced multiplayer tank battle game with real-time combat and upgrades" />
+    <meta property="og:image" content="https://cdn.chatandbuild.com/images/preview.png" />
+    <meta property="keywords" content="no-code, app builder, conversation-driven development, multiplayer game, typescript, socket.io" />
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:title" content="Arras.io - Advanced Multiplayer Tank Game - Built with ChatAndBuild" />
+    <meta property="twitter:description" content="Advanced multiplayer tank battle game with real-time combat and upgrades" />
+    <meta property="twitter:image" content="https://cdn.chatandbuild.com/images/preview.png" />
+    <meta property="twitter:site" content="@chatandbuild" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="gameCanvas"></canvas>
+      <div id="ui-overlay">
+        <div id="hud"></div>
+        <div id="leaderboard"></div>
+        <div id="minimap"></div>
+        <div id="upgrade-menu"></div>
+      </div>
+      <div id="menu-screen">
+        <div class="menu-container">
+          <h1>Arras.io</h1>
+          <input type="text" id="playerName" placeholder="Enter your name" maxlength="16" />
+          <button id="playButton">Play</button>
+          <div class="game-modes">
+            <button class="mode-btn active" data-mode="ffa">Free For All</button>
+            <button class="mode-btn" data-mode="teams">Team Mode</button>
+            <button class="mode-btn" data-mode="domination">Domination</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
