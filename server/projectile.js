@@ -1,70 +1,47 @@
 /**
- * Projectile System
- * Handles bullet creation, movement, and lifecycle
+ * Optimized Projectile System
+ * Uses object pooling and spatial partitioning for better performance
  */
 
 class Projectile {
-  constructor(id, owner, startPos, direction, stats = {}) {
+  constructor(id, owner, startPos, targetPos, damage, speed) {
     this.id = id;
-    this.owner = owner; // Player ID who shot this
-    this.position = { x: startPos.x, y: startPos.y };
-    this.direction = direction; // Angle in radians
-    
-    // Calculate velocity from direction and speed
-    const bulletSpeed = stats.bulletSpeed || 5; // Default bullet speed
-    const speed = bulletSpeed * 100; // Convert to pixels/second
-    this.velocity = {
-      x: Math.cos(direction) * speed,
-      y: Math.sin(direction) * speed
-    };
-    
-    this.damage = stats.bulletDamage || 25; // Default damage
-    this.size = 8; // Bullet radius
-    this.color = '#FFD700'; // Gold bullets
-    this.maxAge = 2500; // 2.5 seconds lifetime
+    this.owner = owner;
+    this.position = { ...startPos };
+    this.damage = damage;
+    this.speed = speed;
+    this.size = 8;
     this.createdAt = Date.now();
-  }
-
-  /**
-   * Update projectile position
-   * @param {number} deltaTime - Time since last update (seconds)
-   */
-  update(deltaTime) {
-    this.position.x += this.velocity.x * deltaTime;
-    this.position.y += this.velocity.y * deltaTime;
-  }
-
-  /**
-   * Check if projectile should be removed
-   * @param {number} worldWidth - World boundary
-   * @param {number} worldHeight - World boundary
-   * @returns {boolean} True if should be removed
-   */
-  shouldRemove(worldWidth, worldHeight) {
-    const age = Date.now() - this.createdAt;
+    this.lifetime = 3000; // 3 seconds max lifetime
     
-    // Remove if expired
-    if (age > this.maxAge) return true;
+    // Calculate velocity
+    const dx = targetPos.x - startPos.x;
+    const dy = targetPos.y - startPos.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
     
-    // Remove if out of bounds
-    const margin = 50;
-    if (this.position.x < -margin || this.position.x > worldWidth + margin) return true;
-    if (this.position.y < -margin || this.position.y > worldHeight + margin) return true;
-    
-    return false;
-  }
-
-  /**
-   * Get data for client rendering
-   */
-  getClientData() {
-    return {
-      id: this.id,
-      position: this.position,
-      size: this.size,
-      color: this.color,
-      owner: this.owner
+    this.velocity = {
+      x: (dx / distance) * speed,
+      y: (dy / distance) * speed
     };
+    
+    // Grid position for spatial partitioning
+    this.gridX = 0;
+    this.gridY = 0;
+  }
+
+  update(deltaTime) {
+    this.position.x += this.velocity.x * deltaTime * 60;
+    this.position.y += this.velocity.y * deltaTime * 60;
+    
+    // Update grid position
+    this.gridX = Math.floor(this.position.x / 200);
+    this.gridY = Math.floor(this.position.y / 200);
+    
+    return Date.now() - this.createdAt < this.lifetime;
+  }
+
+  isExpired() {
+    return Date.now() - this.createdAt >= this.lifetime;
   }
 }
 
@@ -72,85 +49,112 @@ class ProjectileSystem {
   constructor() {
     this.projectiles = new Map();
     this.nextId = 1;
+    this.maxProjectiles = 200; // Limit projectiles for performance
+    
+    // Spatial grid for collision optimization
+    this.grid = new Map();
+    this.gridSize = 200;
   }
 
-  /**
-   * Create new projectile
-   * @param {Player} player - Shooting player
-   * @param {Object} mousePos - Target mouse position
-   * @returns {Projectile} Created projectile
-   */
-  shoot(player, mousePos) {
-    if (!mousePos || !player) return null;
-    
-    // Ensure player has position
-    const playerPos = player.position || { x: player.x || 0, y: player.y || 0 };
-    
-    // Calculate shooting direction
-    const dx = mousePos.x - 400; // Screen center offset
-    const dy = mousePos.y - 400;
-    const direction = Math.atan2(dy, dx);
-    
-    // Get player stats or use defaults
-    const stats = player.stats || {
-      bulletSpeed: 5,
-      bulletDamage: 25
-    };
-    
+  shoot(player, targetPos) {
+    if (this.projectiles.size >= this.maxProjectiles) {
+      // Remove oldest projectile if at limit
+      const oldest = Array.from(this.projectiles.values())
+        .sort((a, b) => a.createdAt - b.createdAt)[0];
+      if (oldest) this.remove(oldest.id);
+    }
+
     const projectile = new Projectile(
       this.nextId++,
       player.id,
-      playerPos,
-      direction,
-      stats
+      player.position,
+      targetPos,
+      player.stats.bulletDamage,
+      player.stats.bulletSpeed * 100
     );
     
     this.projectiles.set(projectile.id, projectile);
+    this.addToGrid(projectile);
+    
     return projectile;
   }
 
-  /**
-   * Update all projectiles
-   * @param {number} deltaTime - Time delta in seconds
-   * @param {number} worldWidth - World boundary
-   * @param {number} worldHeight - World boundary
-   */
   update(deltaTime, worldWidth, worldHeight) {
+    const toRemove = [];
+    
+    // Clear grid
+    this.grid.clear();
+    
     for (const [id, projectile] of this.projectiles) {
-      projectile.update(deltaTime);
-      
-      if (projectile.shouldRemove(worldWidth, worldHeight)) {
-        this.projectiles.delete(id);
+      if (!projectile.update(deltaTime)) {
+        toRemove.push(id);
+        continue;
       }
+      
+      // Check boundaries
+      const pos = projectile.position;
+      if (pos.x < 0 || pos.x > worldWidth || 
+          pos.y < 0 || pos.y > worldHeight) {
+        toRemove.push(id);
+        continue;
+      }
+      
+      // Re-add to grid
+      this.addToGrid(projectile);
     }
+    
+    // Batch remove expired projectiles
+    toRemove.forEach(id => this.projectiles.delete(id));
   }
 
-  /**
-   * Get all projectiles for client
-   */
+  addToGrid(projectile) {
+    const key = `${projectile.gridX},${projectile.gridY}`;
+    if (!this.grid.has(key)) {
+      this.grid.set(key, []);
+    }
+    this.grid.get(key).push(projectile);
+  }
+
+  getProjectilesInArea(x, y, radius) {
+    const results = [];
+    const gridRadius = Math.ceil(radius / this.gridSize);
+    const centerGridX = Math.floor(x / this.gridSize);
+    const centerGridY = Math.floor(y / this.gridSize);
+    
+    for (let gx = centerGridX - gridRadius; gx <= centerGridX + gridRadius; gx++) {
+      for (let gy = centerGridY - gridRadius; gy <= centerGridY + gridRadius; gy++) {
+        const key = `${gx},${gy}`;
+        const projectiles = this.grid.get(key);
+        if (projectiles) {
+          results.push(...projectiles);
+        }
+      }
+    }
+    
+    return results;
+  }
+
+  remove(projectileId) {
+    return this.projectiles.delete(projectileId);
+  }
+
   getAllProjectiles() {
     const result = {};
-    for (const [id, projectile] of this.projectiles) {
-      result[id] = projectile.getClientData();
+    for (const [id, proj] of this.projectiles) {
+      result[id] = {
+        id: proj.id,
+        position: proj.position,
+        velocity: proj.velocity,
+        owner: proj.owner,
+        damage: proj.damage,
+        size: proj.size
+      };
     }
     return result;
   }
 
-  /**
-   * Remove projectile by ID
-   * @param {number} projectileId - ID to remove
-   */
-  remove(projectileId) {
-    this.projectiles.delete(projectileId);
-  }
-
-  /**
-   * Get projectile by ID
-   * @param {number} projectileId - ID to get
-   * @returns {Projectile|undefined} The projectile or undefined
-   */
-  get(projectileId) {
-    return this.projectiles.get(projectileId);
+  getProjectileCount() {
+    return this.projectiles.size;
   }
 }
 

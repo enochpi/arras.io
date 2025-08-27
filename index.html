@@ -13,314 +13,82 @@
   <meta property="twitter:description" content="Single-player tank shooter game with enemy shapes and XP system">
   <meta property="twitter:image" content="https://cdn.chatandbuild.com/images/preview.png">
   <meta property="twitter:site" content="@chatandbuild">
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: 'Arial', sans-serif;
-      background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-      color: white;
-      overflow: hidden;
-    }
-
-    #game-container {
-      position: relative;
-      width: 100vw;
-      height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-
-    #game-canvas {
-      border: 2px solid #333;
-      background: #2C2C2C;
-      cursor: crosshair;
-    }
-
-    /* HUD Styles */
-    #hud {
-      position: absolute;
-      top: 20px;
-      left: 20px;
-      z-index: 100;
-    }
-
-    .score-display, .level-display {
-      background: rgba(0,0,0,0.7);
-      padding: 8px 15px;
-      border-radius: 5px;
-      margin-bottom: 10px;
-      font-size: 16px;
-      font-weight: bold;
-    }
-
-    .stat-bar {
-      position: relative;
-      width: 200px;
-      height: 20px;
-      background: rgba(0,0,0,0.7);
-      border-radius: 10px;
-      margin-bottom: 8px;
-      overflow: hidden;
-    }
-
-    .stat-fill {
-      height: 100%;
-      border-radius: 10px;
-      transition: width 0.3s ease;
-    }
-
-    #health-bar .stat-fill {
-      background: linear-gradient(90deg, #4CAF50, #8BC34A);
-    }
-
-    .stat-text {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      font-size: 12px;
-      font-weight: bold;
-      text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
-    }
-
-    /* Leaderboard */
-    #leaderboard {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      background: rgba(0,0,0,0.8);
-      padding: 15px;
-      border-radius: 10px;
-      min-width: 200px;
-      z-index: 100;
-    }
-
-    #leaderboard h3 {
-      margin-bottom: 10px;
-      color: #FFD700;
-      text-align: center;
-    }
-
-    .leaderboard-entry {
-      display: flex;
-      justify-content: space-between;
-      padding: 5px 0;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-    }
-
-    .leaderboard-entry.current-player {
-      background: rgba(76, 175, 80, 0.3);
-      padding: 5px;
-      border-radius: 3px;
-    }
-
-    /* Minimap */
-    #minimap {
-      position: absolute;
-      bottom: 20px;
-      right: 20px;
-      width: 200px;
-      height: 200px;
-      background: rgba(0,0,0,0.8);
-      border: 2px solid #333;
-      border-radius: 10px;
-      z-index: 100;
-    }
-
-    /* Controls Info */
-    #controls {
-      position: absolute;
-      bottom: 20px;
-      left: 20px;
-      background: rgba(0,0,0,0.7);
-      padding: 15px;
-      border-radius: 10px;
-      font-size: 12px;
-      z-index: 100;
-    }
-
-    #controls h4 {
-      color: #FFD700;
-      margin-bottom: 8px;
-    }
-
-    #controls div {
-      margin-bottom: 3px;
-    }
-
-    /* Connection Status */
-    #connection-status {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(0,0,0,0.9);
-      padding: 30px;
-      border-radius: 15px;
-      text-align: center;
-      z-index: 1000;
-    }
-
-    #connection-status.hidden {
-      display: none;
-    }
-
-    .loading-spinner {
-      border: 4px solid rgba(255,255,255,0.3);
-      border-radius: 50%;
-      border-top: 4px solid #FFD700;
-      width: 40px;
-      height: 40px;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 20px;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    /* Upgrade Menu */
-    #upgrade-menu {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(0,0,0,0.95);
-      padding: 30px;
-      border-radius: 15px;
-      border: 2px solid #FFD700;
-      z-index: 1000;
-      display: none;
-      max-width: 500px;
-    }
-
-    #upgrade-menu h3 {
-      color: #FFD700;
-      text-align: center;
-      margin-bottom: 20px;
-    }
-
-    .upgrade-category {
-      margin-bottom: 20px;
-    }
-
-    .upgrade-category h4 {
-      color: #4CAF50;
-      margin-bottom: 10px;
-    }
-
-    .upgrade-buttons {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-
-    .upgrade-btn {
-      background: linear-gradient(135deg, #4CAF50, #45a049);
-      color: white;
-      border: none;
-      padding: 10px 15px;
-      border-radius: 5px;
-      cursor: pointer;
-      font-weight: bold;
-      transition: all 0.3s ease;
-    }
-
-    .upgrade-btn:hover {
-      background: linear-gradient(135deg, #45a049, #4CAF50);
-      transform: translateY(-2px);
-    }
-
-    #close-upgrade-menu {
-      background: #f44336;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 5px;
-      cursor: pointer;
-      display: block;
-      margin: 20px auto 0;
-    }
-
-    /* Responsive Design */
-    @media (max-width: 768px) {
-      #hud, #leaderboard, #controls, #minimap {
-        font-size: 12px;
-      }
-      
-      .stat-bar {
-        width: 150px;
-        height: 16px;
-      }
-      
-      #minimap {
-        width: 120px;
-        height: 120px;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="game-container">
-    <canvas id="game-canvas" width="800" height="600"></canvas>
+    <!-- Main game canvas -->
+    <canvas id="gameCanvas"></canvas>
     
-    <!-- HUD -->
-    <div id="hud">
-      <div class="score-display">Score: 0</div>
-      <div class="level-display">Level: 1</div>
-      
-      <div class="stat-bar" id="health-bar">
-        <div class="stat-fill"></div>
-        <div class="stat-text">100/100</div>
-      </div>
-    </div>
-    
-    <!-- Leaderboard -->
-    <div id="leaderboard">
-      <h3>Leaderboard</h3>
-    </div>
-    
-    <!-- Minimap -->
-    <div id="minimap"></div>
-    
-    <!-- Controls -->
-    <div id="controls">
-      <h4>Controls</h4>
-      <div><strong>WASD:</strong> Move</div>
-      <div><strong>Mouse:</strong> Aim & Shoot</div>
-      <div><strong>U:</strong> Upgrade Menu</div>
-    </div>
-    
-    <!-- Connection Status -->
-    <div id="connection-status">
-      <div class="loading-spinner"></div>
-      <h3>Connecting to Game Server...</h3>
-      <p>Please wait while we establish connection</p>
-    </div>
-    
-    <!-- Upgrade Menu -->
-    <div id="upgrade-menu">
-      <h3>Upgrade Tank</h3>
-      <div class="upgrade-category">
-        <h4>Stats</h4>
-        <div class="upgrade-buttons">
-          <button class="upgrade-btn" data-stat="health">Health Regen</button>
-          <button class="upgrade-btn" data-stat="damage">Bullet Damage</button>
-          <button class="upgrade-btn" data-stat="speed">Movement Speed</button>
-          <button class="upgrade-btn" data-stat="reload">Reload Speed</button>
+    <!-- UI Overlay -->
+    <div id="game-ui">
+      <!-- Stats Display -->
+      <div class="stats-container">
+        <div class="score-display">Score: <span id="score">0</span></div>
+        <div class="level-display">Level: <span id="level">1</span></div>
+        
+        <div class="stat-bars">
+          <div class="stat-bar health-bar">
+            <span class="stat-bar-label">Health</span>
+            <div class="stat-fill" id="health-fill"></div>
+            <div class="stat-text" id="health-text">100/100</div>
+          </div>
+          
+          <div class="stat-bar xp-bar">
+            <span class="stat-bar-label">Experience</span>
+            <div class="stat-fill" id="xp-fill"></div>
+            <div class="stat-text" id="xp-text">0/100</div>
+          </div>
         </div>
       </div>
-      <button id="close-upgrade-menu">Close</button>
+      
+      <!-- Minimap -->
+      <div id="minimap">
+        <canvas id="minimapCanvas"></canvas>
+      </div>
+      
+      <!-- Controls Info -->
+      <div id="controls">
+        <h4>Controls</h4>
+        <div><strong>WASD/Arrows:</strong> Move</div>
+        <div><strong>Mouse:</strong> Aim</div>
+        <div><strong>Click:</strong> Shoot</div>
+        <div><strong>U:</strong> Upgrades</div>
+      </div>
+      
+      <!-- Upgrade Menu (Hidden by default) -->
+      <div id="upgrade-menu" class="hidden">
+        <h3>Choose Your Upgrade</h3>
+        <div id="upgrade-options">
+          <button class="upgrade-option" data-upgrade="health">
+            <h4>Max Health</h4>
+            <p>+20 HP capacity</p>
+          </button>
+          <button class="upgrade-option" data-upgrade="regen">
+            <h4>Health Regen</h4>
+            <p>Faster healing</p>
+          </button>
+          <button class="upgrade-option" data-upgrade="damage">
+            <h4>Bullet Damage</h4>
+            <p>+25% damage</p>
+          </button>
+          <button class="upgrade-option" data-upgrade="reload">
+            <h4>Reload Speed</h4>
+            <p>Shoot faster</p>
+          </button>
+          <button class="upgrade-option" data-upgrade="speed">
+            <h4>Movement Speed</h4>
+            <p>+15% speed</p>
+          </button>
+          <button class="upgrade-option" data-upgrade="bulletSpeed">
+            <h4>Bullet Speed</h4>
+            <p>Faster projectiles</p>
+          </button>
+        </div>
+      </div>
     </div>
   </div>
-
-  <script type="module" src="/src/main.ts"></script>
+  
+  <script src="game.js"></script>
 </body>
 </html>

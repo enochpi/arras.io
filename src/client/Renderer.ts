@@ -16,9 +16,8 @@ export class Renderer {
   renderGrid(worldWidth: number, worldHeight: number): void {
     const gridSize = 50;
     
-    this.ctx.strokeStyle = '#333';
+    this.ctx.strokeStyle = 'rgba(100, 100, 120, 0.15)';
     this.ctx.lineWidth = 1;
-    this.ctx.globalAlpha = 0.2;
     
     // Vertical lines
     for (let x = 0; x <= worldWidth; x += gridSize) {
@@ -35,8 +34,6 @@ export class Renderer {
       this.ctx.lineTo(worldWidth, y);
       this.ctx.stroke();
     }
-    
-    this.ctx.globalAlpha = 1;
   }
 
   renderPlayer(player: Player, isCurrentPlayer: boolean): void {
@@ -46,95 +43,174 @@ export class Renderer {
     this.ctx.translate(x, y);
     this.ctx.rotate(player.rotation);
     
-    // Tank body (circle)
-    this.ctx.fillStyle = isCurrentPlayer ? '#00B2E1' : '#4CAF50';
+    // Tank shadow
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    this.ctx.beginPath();
+    this.ctx.arc(3, 3, 22, 0, Math.PI * 2);
+    this.ctx.fill();
+    
+    // Tank body with gradient
+    const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, 20);
+    if (isCurrentPlayer) {
+      gradient.addColorStop(0, '#00D4FF');
+      gradient.addColorStop(1, '#0082A3');
+    } else {
+      gradient.addColorStop(0, '#5CDB5C');
+      gradient.addColorStop(1, '#388E3C');
+    }
+    
+    this.ctx.fillStyle = gradient;
     this.ctx.beginPath();
     this.ctx.arc(0, 0, 20, 0, Math.PI * 2);
     this.ctx.fill();
     
-    // Tank barrel
-    this.ctx.fillStyle = isCurrentPlayer ? '#0082A3' : '#388E3C';
-    this.ctx.fillRect(0, -4, 30, 8);
+    // Tank outline
+    this.ctx.strokeStyle = isCurrentPlayer ? '#00B2E1' : '#4CAF50';
+    this.ctx.lineWidth = 2;
+    this.ctx.stroke();
+    
+    // Tank barrel with gradient
+    const barrelGradient = this.ctx.createLinearGradient(0, -4, 0, 4);
+    if (isCurrentPlayer) {
+      barrelGradient.addColorStop(0, '#0099CC');
+      barrelGradient.addColorStop(1, '#006688');
+    } else {
+      barrelGradient.addColorStop(0, '#449944');
+      barrelGradient.addColorStop(1, '#336633');
+    }
+    
+    this.ctx.fillStyle = barrelGradient;
+    this.ctx.fillRect(0, -5, 35, 10);
+    
+    // Barrel outline
+    this.ctx.strokeStyle = isCurrentPlayer ? '#005577' : '#225522';
+    this.ctx.lineWidth = 1;
+    this.ctx.strokeRect(0, -5, 35, 10);
     
     this.ctx.restore();
     
-    // Health bar
-    const healthBarWidth = 50;
-    const healthBarHeight = 6;
-    const healthPercentage = player.health / player.maxHealth;
+    // Enhanced health bar
+    this.renderHealthBar(x, y - 35, player.health, player.maxHealth, 50, 6);
     
-    // Background
-    this.ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    this.ctx.fillRect(x - healthBarWidth/2, y - 35, healthBarWidth, healthBarHeight);
-    
-    // Health
-    this.ctx.fillStyle = healthPercentage > 0.6 ? '#4CAF50' : 
-                        healthPercentage > 0.3 ? '#FF9800' : '#F44336';
-    this.ctx.fillRect(x - healthBarWidth/2, y - 35, healthBarWidth * healthPercentage, healthBarHeight);
-    
-    // Player name
-    this.ctx.fillStyle = '#FFF';
-    this.ctx.font = '14px Arial';
+    // Player name with shadow
+    this.ctx.fillStyle = '#000';
+    this.ctx.font = 'bold 14px Arial';
     this.ctx.textAlign = 'center';
+    this.ctx.fillText(player.name, x + 1, y - 39);
+    
+    this.ctx.fillStyle = '#FFF';
     this.ctx.fillText(player.name, x, y - 40);
     
-    // Level indicator
+    // Level indicator with glow
+    this.ctx.shadowColor = '#FFD700';
+    this.ctx.shadowBlur = 10;
     this.ctx.fillStyle = '#FFD700';
-    this.ctx.font = '12px Arial';
+    this.ctx.font = 'bold 12px Arial';
     this.ctx.fillText(`Lv.${player.level}`, x, y + 35);
+    this.ctx.shadowBlur = 0;
   }
 
   renderProjectile(projectile: Projectile): void {
     const { x, y } = projectile.position;
     
-    // Main bullet
-    this.ctx.fillStyle = '#FFD700';
+    // Projectile trail
+    this.ctx.strokeStyle = 'rgba(255, 215, 0, 0.3)';
+    this.ctx.lineWidth = 6;
     this.ctx.beginPath();
-    this.ctx.arc(x, y, 4, 0, Math.PI * 2);
+    this.ctx.moveTo(x - projectile.velocity.x * 0.5, y - projectile.velocity.y * 0.5);
+    this.ctx.lineTo(x, y);
+    this.ctx.stroke();
+    
+    // Main bullet with gradient
+    const gradient = this.ctx.createRadialGradient(x, y, 0, x, y, 5);
+    gradient.addColorStop(0, '#FFFF00');
+    gradient.addColorStop(0.5, '#FFD700');
+    gradient.addColorStop(1, '#FFA000');
+    
+    this.ctx.fillStyle = gradient;
+    this.ctx.beginPath();
+    this.ctx.arc(x, y, 5, 0, Math.PI * 2);
     this.ctx.fill();
     
     // Glow effect
-    this.ctx.strokeStyle = '#FFA000';
-    this.ctx.lineWidth = 2;
-    this.ctx.globalAlpha = 0.6;
+    this.ctx.shadowColor = '#FFD700';
+    this.ctx.shadowBlur = 15;
+    this.ctx.fillStyle = 'rgba(255, 215, 0, 0.5)';
     this.ctx.beginPath();
-    this.ctx.arc(x, y, 6, 0, Math.PI * 2);
-    this.ctx.stroke();
-    this.ctx.globalAlpha = 1;
+    this.ctx.arc(x, y, 8, 0, Math.PI * 2);
+    this.ctx.fill();
+    this.ctx.shadowBlur = 0;
   }
 
   renderShape(shape: Shape): void {
     const { x, y } = shape.position;
     const sides = this.getShapeSides(shape.type);
+    const color = this.getShapeColor(shape.type);
     
     this.ctx.save();
     this.ctx.translate(x, y);
     
-    // Draw shape
-    this.ctx.fillStyle = shape.color;
-    this.ctx.strokeStyle = this.darkenColor(shape.color);
+    // Shape shadow
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    this.ctx.save();
+    this.ctx.translate(3, 3);
+    this.drawPolygon(0, 0, shape.size + 2, sides);
+    this.ctx.fill();
+    this.ctx.restore();
+    
+    // Shape with gradient
+    const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, shape.size);
+    gradient.addColorStop(0, this.lightenColor(color, 20));
+    gradient.addColorStop(1, color);
+    
+    this.ctx.fillStyle = gradient;
+    this.ctx.strokeStyle = this.darkenColor(color, 20);
     this.ctx.lineWidth = 2;
     
     this.drawPolygon(0, 0, shape.size, sides);
     this.ctx.fill();
     this.ctx.stroke();
     
+    // Inner highlight
+    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    this.drawPolygon(0, 0, shape.size * 0.7, sides);
+    this.ctx.fill();
+    
     this.ctx.restore();
     
     // Health bar for damaged shapes
     if (shape.health < shape.maxHealth) {
-      const barWidth = shape.size * 1.5;
-      const barHeight = 4;
-      const healthPercentage = shape.health / shape.maxHealth;
-      
-      // Background
-      this.ctx.fillStyle = 'rgba(0,0,0,0.5)';
-      this.ctx.fillRect(x - barWidth/2, y - shape.size - 10, barWidth, barHeight);
-      
-      // Health
-      this.ctx.fillStyle = healthPercentage > 0.5 ? '#4CAF50' : '#F44336';
-      this.ctx.fillRect(x - barWidth/2, y - shape.size - 10, barWidth * healthPercentage, barHeight);
+      this.renderHealthBar(x, y - shape.size - 10, shape.health, shape.maxHealth, shape.size * 1.5, 4);
     }
+  }
+
+  private renderHealthBar(x: number, y: number, health: number, maxHealth: number, width: number, height: number): void {
+    const healthPercentage = health / maxHealth;
+    
+    // Background
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    this.ctx.fillRect(x - width/2, y, width, height);
+    
+    // Health gradient
+    const gradient = this.ctx.createLinearGradient(x - width/2, y, x + width/2, y);
+    if (healthPercentage > 0.6) {
+      gradient.addColorStop(0, '#4CAF50');
+      gradient.addColorStop(1, '#8BC34A');
+    } else if (healthPercentage > 0.3) {
+      gradient.addColorStop(0, '#FF9800');
+      gradient.addColorStop(1, '#FFB74D');
+    } else {
+      gradient.addColorStop(0, '#F44336');
+      gradient.addColorStop(1, '#EF5350');
+    }
+    
+    this.ctx.fillStyle = gradient;
+    this.ctx.fillRect(x - width/2, y, width * healthPercentage, height);
+    
+    // Border
+    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    this.ctx.lineWidth = 1;
+    this.ctx.strokeRect(x - width/2, y, width, height);
   }
 
   private getShapeSides(type: string): number {
@@ -144,6 +220,16 @@ export class Renderer {
       case 'pentagon': return 5;
       case 'hexagon': return 6;
       default: return 3;
+    }
+  }
+
+  private getShapeColor(type: string): string {
+    switch(type) {
+      case 'triangle': return '#FF6B6B';
+      case 'square': return '#FFE66D';
+      case 'pentagon': return '#4ECDC4';
+      case 'hexagon': return '#A8E6CF';
+      default: return '#888888';
     }
   }
 
@@ -165,12 +251,20 @@ export class Renderer {
     this.ctx.closePath();
   }
 
-  private darkenColor(color: string): string {
-    // Simple color darkening
+  private darkenColor(color: string, amount: number): string {
     const hex = color.replace('#', '');
-    const r = Math.max(0, parseInt(hex.substr(0, 2), 16) - 40);
-    const g = Math.max(0, parseInt(hex.substr(2, 2), 16) - 40);
-    const b = Math.max(0, parseInt(hex.substr(4, 2), 16) - 40);
+    const r = Math.max(0, parseInt(hex.substr(0, 2), 16) - amount);
+    const g = Math.max(0, parseInt(hex.substr(2, 2), 16) - amount);
+    const b = Math.max(0, parseInt(hex.substr(4, 2), 16) - amount);
+    
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+  }
+
+  private lightenColor(color: string, amount: number): string {
+    const hex = color.replace('#', '');
+    const r = Math.min(255, parseInt(hex.substr(0, 2), 16) + amount);
+    const g = Math.min(255, parseInt(hex.substr(2, 2), 16) + amount);
+    const b = Math.min(255, parseInt(hex.substr(4, 2), 16) + amount);
     
     return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
   }

@@ -1,6 +1,6 @@
 /**
- * Arras.io Game - Main Stylesheet
- * Modern, polished design with smooth animations
+ * Arras.io Single-Player Game - Complete Stylesheet
+ * Modern, polished design with smooth animations and visual effects
  */
 
 /* ==================== RESET & BASE ==================== */
@@ -17,28 +17,20 @@ body {
   color: white;
   user-select: none;
   -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
   position: relative;
 }
 
-/* ==================== MAIN CONTAINER ==================== */
-#app {
-  width: 100vw;
-  height: 100vh;
-  position: relative;
-}
-
+/* ==================== GAME CONTAINER ==================== */
 #game-container {
   position: relative;
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-/* ==================== CANVAS STYLING ==================== */
+/* ==================== CANVAS ==================== */
 #gameCanvas {
   position: absolute;
   top: 0;
@@ -48,15 +40,11 @@ body {
   cursor: crosshair;
   background: radial-gradient(ellipse at center, #2a2a3e 0%, #16161d 100%);
   image-rendering: optimizeSpeed;
-  image-rendering: -moz-crisp-edges;
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: optimize-contrast;
-  transform: translateZ(0);
-  backface-visibility: hidden;
+  image-rendering: crisp-edges;
   box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.5);
 }
 
-/* ==================== HUD CONTAINER ==================== */
+/* ==================== UI OVERLAY ==================== */
 #game-ui {
   position: absolute;
   top: 0;
@@ -67,7 +55,11 @@ body {
   z-index: 10;
 }
 
-/* ==================== SCORE & STATS DISPLAY ==================== */
+#game-ui > * {
+  pointer-events: auto;
+}
+
+/* ==================== STATS CONTAINER ==================== */
 .stats-container {
   position: absolute;
   top: 20px;
@@ -78,29 +70,27 @@ body {
   border: 2px solid rgba(0, 178, 225, 0.3);
   backdrop-filter: blur(10px);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  pointer-events: auto;
   animation: slideInLeft 0.5s ease-out;
 }
 
-.score-display, .level-display {
-  font-size: 18px;
+.score-display {
+  font-size: 22px;
   font-weight: 600;
+  color: #FFD700;
   margin-bottom: 8px;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
 }
 
-.score-display {
-  color: #FFD700;
-  font-size: 22px;
-}
-
 .level-display {
+  font-size: 18px;
+  font-weight: 600;
   color: #00E5FF;
+  margin-bottom: 15px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
 }
 
-/* ==================== HEALTH & XP BARS ==================== */
+/* ==================== STAT BARS ==================== */
 .stat-bars {
-  margin-top: 15px;
   width: 250px;
 }
 
@@ -135,7 +125,7 @@ body {
   overflow: hidden;
 }
 
-/* Health Bar Gradient */
+/* Health Bar */
 .health-bar .stat-fill {
   background: linear-gradient(90deg, #4CAF50, #8BC34A);
   box-shadow: 0 0 20px rgba(76, 175, 80, 0.5);
@@ -152,7 +142,7 @@ body {
   animation: shimmer 2s infinite;
 }
 
-/* XP Bar Gradient */
+/* XP Bar */
 .xp-bar .stat-fill {
   background: linear-gradient(90deg, #9C27B0, #E91E63);
   box-shadow: 0 0 20px rgba(156, 39, 176, 0.5);
@@ -167,9 +157,10 @@ body {
   font-weight: bold;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
   letter-spacing: 0.5px;
+  pointer-events: none;
 }
 
-/* ==================== MINIMAP STYLING ==================== */
+/* ==================== MINIMAP ==================== */
 #minimap {
   position: absolute;
   bottom: 20px;
@@ -181,7 +172,6 @@ body {
   border-radius: 15px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 0 20px rgba(0, 178, 225, 0.1);
   overflow: hidden;
-  pointer-events: auto;
   animation: slideInRight 0.5s ease-out;
 }
 
@@ -198,13 +188,13 @@ body {
   text-shadow: 0 0 10px rgba(0, 178, 225, 0.5);
 }
 
-#minimap canvas {
+#minimapCanvas {
   width: 100%;
   height: 100%;
   border-radius: 13px;
 }
 
-/* Minimap Grid Effect */
+/* Grid overlay effect */
 #minimap::after {
   content: '';
   position: absolute;
@@ -219,52 +209,36 @@ body {
   border-radius: 13px;
 }
 
-/* ==================== LEADERBOARD ==================== */
-#leaderboard {
+/* ==================== CONTROLS ==================== */
+#controls {
   position: absolute;
-  top: 20px;
-  right: 20px;
-  background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.7));
-  padding: 20px;
+  bottom: 20px;
+  left: 20px;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.6));
+  padding: 15px 20px;
   border-radius: 15px;
-  min-width: 220px;
-  border: 2px solid rgba(255, 215, 0, 0.3);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  font-size: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
-  animation: slideInRight 0.5s ease-out;
+  animation: slideInLeft 0.5s ease-out;
 }
 
-#leaderboard h3 {
+#controls h4 {
   color: #FFD700;
-  text-align: center;
-  margin-bottom: 15px;
-  font-size: 20px;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-}
-
-.leaderboard-entry {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 10px;
-  margin-bottom: 5px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  transition: all 0.3s ease;
+  margin-bottom: 10px;
   font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
-.leaderboard-entry:hover {
-  background: rgba(255, 255, 255, 0.1);
-  transform: translateX(5px);
+#controls div {
+  margin-bottom: 5px;
+  color: rgba(255, 255, 255, 0.9);
 }
 
-.leaderboard-entry.current-player {
-  background: linear-gradient(90deg, rgba(76, 175, 80, 0.3), rgba(76, 175, 80, 0.1));
-  border: 1px solid rgba(76, 175, 80, 0.5);
-  font-weight: bold;
-  animation: pulse 2s infinite;
+#controls strong {
+  color: #00B2E1;
+  margin-right: 5px;
 }
 
 /* ==================== UPGRADE MENU ==================== */
@@ -277,8 +251,7 @@ body {
   border: 2px solid #00B2E1;
   border-radius: 20px;
   padding: 30px;
-  min-width: 400px;
-  pointer-events: auto;
+  min-width: 500px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 100px rgba(0, 178, 225, 0.2);
   backdrop-filter: blur(20px);
   opacity: 0;
@@ -288,6 +261,10 @@ body {
 #upgrade-menu:not(.hidden) {
   transform: translate(-50%, -50%) scale(1);
   opacity: 1;
+}
+
+#upgrade-menu.hidden {
+  display: none;
 }
 
 #upgrade-menu h3 {
@@ -302,9 +279,8 @@ body {
 
 #upgrade-options {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 15px;
-  margin-bottom: 20px;
 }
 
 .upgrade-option {
@@ -316,6 +292,8 @@ body {
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
+  color: white;
+  font-family: inherit;
 }
 
 .upgrade-option::before {
@@ -353,59 +331,6 @@ body {
   line-height: 1.4;
 }
 
-/* ==================== CONTROLS INFO ==================== */
-#controls {
-  position: absolute;
-  bottom: 20px;
-  left: 20px;
-  background: linear-gradient(135deg, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.6));
-  padding: 15px 20px;
-  border-radius: 15px;
-  font-size: 12px;
-  border: 2px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  animation: slideInLeft 0.5s ease-out;
-}
-
-#controls h4 {
-  color: #FFD700;
-  margin-bottom: 10px;
-  font-size: 14px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-#controls div {
-  margin-bottom: 5px;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-#controls strong {
-  color: #00B2E1;
-  margin-right: 5px;
-}
-
-/* ==================== SHAPE COLOR CODING ==================== */
-.shape-triangle {
-  fill: #FF6B6B;
-  stroke: #CC5555;
-}
-
-.shape-square {
-  fill: #FFE66D;
-  stroke: #CCB855;
-}
-
-.shape-pentagon {
-  fill: #4ECDC4;
-  stroke: #3EA39C;
-}
-
-.shape-hexagon {
-  fill: #A8E6CF;
-  stroke: #86B8A6;
-}
-
 /* ==================== ANIMATIONS ==================== */
 @keyframes slideInLeft {
   from {
@@ -429,6 +354,12 @@ body {
   }
 }
 
+@keyframes shimmer {
+  100% {
+    left: 100%;
+  }
+}
+
 @keyframes pulse {
   0%, 100% {
     box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
@@ -438,22 +369,7 @@ body {
   }
 }
 
-@keyframes shimmer {
-  100% {
-    left: 100%;
-  }
-}
-
-@keyframes rotate {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* ==================== RESPONSIVE DESIGN ==================== */
+/* ==================== RESPONSIVE ==================== */
 @media (max-width: 768px) {
   .stats-container {
     padding: 10px 15px;
@@ -470,18 +386,21 @@ body {
     height: 120px;
   }
   
-  #leaderboard {
-    font-size: 12px;
-    min-width: 180px;
-    padding: 15px;
-  }
-  
   #controls {
     font-size: 10px;
   }
+  
+  #upgrade-menu {
+    min-width: 90%;
+    padding: 20px;
+  }
+  
+  #upgrade-options {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
-/* ==================== PERFORMANCE OPTIMIZATIONS ==================== */
+/* ==================== PERFORMANCE ==================== */
 * {
   will-change: auto;
 }
@@ -492,67 +411,4 @@ canvas {
 
 .stat-fill {
   will-change: width;
-}
-
-/* ==================== LOADING SCREEN ==================== */
-.loading {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.loading-spinner {
-  width: 60px;
-  height: 60px;
-  border: 4px solid rgba(255, 255, 255, 0.1);
-  border-top: 4px solid #00B2E1;
-  border-radius: 50%;
-  animation: rotate 1s linear infinite;
-}
-
-.loading-text {
-  position: absolute;
-  margin-top: 100px;
-  font-size: 24px;
-  color: #00B2E1;
-  text-transform: uppercase;
-  letter-spacing: 3px;
-  animation: pulse 1.5s infinite;
-}
-
-/* ==================== NOTIFICATION SYSTEM ==================== */
-.notification {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: linear-gradient(135deg, rgba(0, 0, 0, 0.95), rgba(20, 20, 30, 0.95));
-  padding: 20px 40px;
-  border-radius: 15px;
-  border: 2px solid #FFD700;
-  color: white;
-  font-size: 18px;
-  font-weight: 600;
-  text-align: center;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
-  z-index: 1001;
-  animation: slideInDown 0.5s ease-out;
-}
-
-@keyframes slideInDown {
-  from {
-    transform: translate(-50%, -150%);
-    opacity: 0;
-  }
-  to {
-    transform: translate(-50%, -50%);
-    opacity: 1;
-  }
 }

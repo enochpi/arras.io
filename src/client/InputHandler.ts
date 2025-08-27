@@ -1,45 +1,55 @@
-import { GameClient } from './GameClient';
+/**
+ * Input Handler
+ * Manages keyboard and mouse input with proper event handling
+ */
 
 export class InputHandler {
   private keys: { [key: string]: boolean } = {};
   private mousePos = { x: 0, y: 0 };
   private shooting = false;
 
-  constructor(private canvas: HTMLCanvasElement, private gameClient: GameClient) {
+  constructor(private canvas: HTMLCanvasElement) {
     this.setupEventListeners();
   }
 
   private setupEventListeners(): void {
     // Keyboard events
     window.addEventListener('keydown', (e) => {
-      this.keys[e.code] = true;
-      this.sendInput();
+      const key = e.key.toLowerCase();
+      if (['w', 'a', 's', 'd'].includes(key)) {
+        e.preventDefault();
+        this.keys[key] = true;
+      }
     });
 
     window.addEventListener('keyup', (e) => {
-      this.keys[e.code] = false;
-      this.sendInput();
+      const key = e.key.toLowerCase();
+      if (['w', 'a', 's', 'd'].includes(key)) {
+        e.preventDefault();
+        this.keys[key] = false;
+      }
     });
 
     // Mouse events
     this.canvas.addEventListener('mousemove', (e) => {
       const rect = this.canvas.getBoundingClientRect();
-      this.mousePos.x = e.clientX - rect.left;
-      this.mousePos.y = e.clientY - rect.top;
-      this.sendInput();
+      this.mousePos = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
     });
 
     this.canvas.addEventListener('mousedown', (e) => {
       if (e.button === 0) { // Left click
+        e.preventDefault();
         this.shooting = true;
-        this.sendInput();
       }
     });
 
     this.canvas.addEventListener('mouseup', (e) => {
-      if (e.button === 0) { // Left click
+      if (e.button === 0) {
+        e.preventDefault();
         this.shooting = false;
-        this.sendInput();
       }
     });
 
@@ -47,21 +57,29 @@ export class InputHandler {
     this.canvas.addEventListener('contextmenu', (e) => {
       e.preventDefault();
     });
+
+    // Handle focus loss
+    window.addEventListener('blur', () => {
+      this.keys = {};
+      this.shooting = false;
+    });
   }
 
-  private sendInput(): void {
-    const input = {
+  getInput() {
+    return {
       keys: {
-        w: this.keys['KeyW'] || this.keys['ArrowUp'],
-        a: this.keys['KeyA'] || this.keys['ArrowLeft'],
-        s: this.keys['KeyS'] || this.keys['ArrowDown'],
-        d: this.keys['KeyD'] || this.keys['ArrowRight']
+        w: this.keys['w'] || false,
+        a: this.keys['a'] || false,
+        s: this.keys['s'] || false,
+        d: this.keys['d'] || false
       },
-      mousePos: this.mousePos,
-      shooting: this.shooting,
-      timestamp: Date.now()
+      mousePos: { ...this.mousePos },
+      shooting: this.shooting
     };
+  }
 
-    this.gameClient.sendInput(input);
+  reset(): void {
+    this.keys = {};
+    this.shooting = false;
   }
 }

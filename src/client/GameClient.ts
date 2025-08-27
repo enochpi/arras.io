@@ -1,6 +1,11 @@
+/**
+ * Game Client - Main client-side game logic
+ * Handles game state, rendering, and server communication
+ */
+
 import { io, Socket } from 'socket.io-client';
 import { Renderer, Shape } from './Renderer';
-import { Camera } from './Camera';
+import { UIManager } from './UIManager';
 
 export interface Player {
   id: string;
@@ -9,239 +14,210 @@ export interface Player {
   rotation: number;
   health: number;
   maxHealth: number;
-  score: number;
   level: number;
-  color: string;
-  size: number;
+  xp: number;
+  score: number;
+  velocity: { x: number; y: number };
 }
 
 export interface Projectile {
   id: string;
   position: { x: number; y: number };
-  size: number;
-  color: string;
-  owner: string;
-}
-
-export interface GameState {
-  players: { [id: string]: Player };
-  projectiles: { [id: string]: Projectile };
-  shapes: { [id: string]: Shape };
-  leaderboard: Array<{ id: string; name: string; score: number; level: number }>;
-  timestamp: number;
+  velocity: { x: number; y: number };
+  damage: number;
+  ownerId: string;
 }
 
 export class GameClient {
-  private socket: Socket | null = null;
-  private renderer: Renderer;
-  private camera: Camera;
-  private gameState: GameState = {
-    players: {},
-    projectiles: {},
-    shapes: {},
-    leaderboard: [],
-    timestamp: 0
-  };
-  private playerId: string | null = null;
-  private isConnected = false;
-  private lastFrameTime = 0;
-
-  constructor(private canvas: HTMLCanvasElement, private ctx: CanvasRenderingContext2D) {
-    this.renderer = new Renderer(ctx);
-    this.camera = new Camera(canvas.width, canvas.height);
-    console.log('GameClient initialized');
+  private socket!: Socket;
+  private canvas!: HTMLCanvasElement;
+  private ctx!: CanvasRenderingContext2D;
+  private renderer!: Renderer;
+  private uiManager!: UIManager;
+  
+  private currentPlayer!: Player;
+  private players: Map<string, Player> = new Map();
+  private projectiles: Map<string, Projectile> = new Map();
+  private shapes: Map<string, Shape> = new Map();
+  
+  private mousePosition = { x: 0, y: 0 };
+  private keys = new Set<string>();
+  private camera = { x: 0, y: 0 };
+  
+  initialize(): void {
+    this.setupCanvas();
+    this.setupSocketConnection();
+    this.setupEventListeners();
+    this.uiManager = new UIManager();
+    this.uiManager.initialize();
+    this.startGameLoop();
   }
-
-  connect(playerName: string): void {
-    console.log('Attempting to connect to server...');
+  
+  private setupCanvas(): void {
+    this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
+    this.ctx = this.canvas.getContext('2d')!;
+    this.renderer = new Renderer(this.ctx);
     
-    this.socket = io('http://localhost:3001', {
-      transports: ['websocket', 'polling']
-    });
-
+    this.canvas.width = window.innerWidth;
+    this.canvas.height = window.innerHeight;
+  }
+  
+  private setupSocketConnection(): void {
+    this.socket = io('http://localhost:3001');
+    
     this.socket.on('connect', () => {
-      console.log('Connected to server!');
-      this.socket!.emit('join-game', { name: playerName });
+      console.log('Connected to server');
+      this.socket.emit('joinGame', { name: 'Player' });
     });
-
-    this.socket.on('player-joined', (data) => {
-      console.log('Player joined:', data);
-      this.playerId = data.playerId;
-      this.isConnected = true;
+    
+    this.socket.on('gameState', (state) => {
+      this.updateGameState(state);
     });
-
-    this.socket.on('game-state', (state: GameState) => {
-      this.gameState = state;
-      
-      // Debug log to check if we're receiving data
-      const playerCount = Object.keys(state.players).length;
-      const shapeCount = Object.keys(state.shapes).length;
-      const projectileCount = Object.keys(state.projectiles).length;
-      
-      if (playerCount > 0 || shapeCount > 0) {
-        console.log(`Game state: ${playerCount} players, ${shapeCount} shapes, ${projectileCount} projectiles`);
+    
+    this.socket.on('playerJoined', (player) => {
+      this.players.set(player.id, player);
+      if (player.id === this.socket.id) {
+        this.currentPlayer = player;
       }
-      
-      this.updateUI();
     });
-
-    this.socket.on('connection-rejected', (data) => {
-      console.log('Connection rejected:', data);
-      alert(`Connection rejected: ${data.message}`);
-    });
-
-    this.socket.on('disconnect', () => {
-      console.log('Disconnected from server');
-      this.isConnected = false;
-    });
-
-    this.socket.on('connect_error', (error) => {
-      console.error('Connection error:', error);
+    
+    this.socket.on('playerLeft', (playerId) => {
+      this.players.delete(playerId);
     });
   }
-
-  sendInput(input: any): void {
-    if (this.socket && this.isConnected) {
-      this.socket.emit('player-input', input);
+  
+  private setupEventListeners(): void {
+    // Mouse movement
+    this.canvas.addEventListener('mousemove', (e) => {
+      this.mousePosition.x = e.clientX;
+      this.mousePosition.y = e.clientY;
+      this.updatePlayerRotation();
+    });
+    
+    // Mouse click for shooting
+    this.canvas.addEventListener('mousedown', () => {
+      this.socket.emit('shoot');
+    });
+    
+    // Keyboard controls
+    window.addEventListener('keydown', (e) => {
+      this.keys.add(e.code);
+      this.updateMovement();
+    });
+    
+    window.addEventListener('keyup', (e) => {
+      this.keys.delete(e.code);
+      this.updateMovement();
+    });
+  }
+  
+  private updatePlayerRotation(): void {
+    if (!this.currentPlayer) return;
+    
+    const centerX = this.canvas.width / 2;
+    const centerY = this.canvas.height / 2;
+    const angle = Math.atan2(
+      this.mousePosition.y - centerY,
+      this.mousePosition.x - centerX
+    );
+    
+    this.socket.emit('rotate', angle);
+  }
+  
+  private updateMovement(): void {
+    const movement = { x: 0, y: 0 };
+    
+    if (this.keys.has('KeyW')) movement.y = -1;
+    if (this.keys.has('KeyS')) movement.y = 1;
+    if (this.keys.has('KeyA')) movement.x = -1;
+    if (this.keys.has('KeyD')) movement.x = 1;
+    
+    this.socket.emit('move', movement);
+  }
+  
+  private updateGameState(state: any): void {
+    // Update players
+    this.players.clear();
+    for (const player of state.players) {
+      this.players.set(player.id, player);
+      if (player.id === this.socket.id) {
+        this.currentPlayer = player;
+      }
     }
-  }
-
-  start(): void {
-    console.log('Starting game loop...');
-    this.lastFrameTime = performance.now();
-    this.gameLoop();
-  }
-
-  private gameLoop = (): void => {
-    const currentTime = performance.now();
-    const deltaTime = (currentTime - this.lastFrameTime) / 1000;
-    this.lastFrameTime = currentTime;
-
-    this.update(deltaTime);
-    this.render();
-
-    requestAnimationFrame(this.gameLoop);
-  };
-
-  private update(deltaTime: number): void {
-    if (this.playerId && this.gameState.players[this.playerId]) {
-      const player = this.gameState.players[this.playerId];
-      this.camera.follow(player.position.x, player.position.y);
+    
+    // Update projectiles
+    this.projectiles.clear();
+    for (const projectile of state.projectiles) {
+      this.projectiles.set(projectile.id, projectile);
     }
-    this.camera.update(deltaTime);
+    
+    // Update shapes
+    this.shapes.clear();
+    for (const shape of state.shapes) {
+      this.shapes.set(shape.id, shape);
+    }
+    
+    // Update UI
+    if (this.currentPlayer) {
+      this.uiManager.updateStats({
+        score: this.currentPlayer.score,
+        level: this.currentPlayer.level,
+        health: this.currentPlayer.health,
+        maxHealth: this.currentPlayer.maxHealth,
+        xp: this.currentPlayer.xp,
+        xpToNext: this.currentPlayer.level * 100
+      });
+    }
+    
+    // Update leaderboard
+    const leaderboardData = Array.from(this.players.values()).map(p => ({
+      name: p.name,
+      score: p.score,
+      isCurrentPlayer: p.id === this.socket.id
+    }));
+    this.uiManager.updateLeaderboard(leaderboardData);
   }
-
+  
+  private startGameLoop(): void {
+    const gameLoop = () => {
+      this.render();
+      requestAnimationFrame(gameLoop);
+    };
+    gameLoop();
+  }
+  
   private render(): void {
     // Clear canvas
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     
-    // Background
-    this.ctx.fillStyle = '#2C2C2C';
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    // Update camera to follow player
+    if (this.currentPlayer) {
+      this.camera.x = this.currentPlayer.position.x - this.canvas.width / 2;
+      this.camera.y = this.currentPlayer.position.y - this.canvas.height / 2;
+    }
     
-    // Save context state
+    // Apply camera transform
     this.ctx.save();
-    
-    // Apply camera transformation
-    this.camera.apply(this.ctx);
+    this.ctx.translate(-this.camera.x, -this.camera.y);
     
     // Render grid
-    this.renderer.renderGrid(4000, 4000);
+    this.renderer.renderGrid(3000, 3000);
     
-    // Render shapes (behind everything else)
-    const shapes = Object.values(this.gameState.shapes);
-    if (shapes.length > 0) {
-      console.log(`Rendering ${shapes.length} shapes`);
-      shapes.forEach(shape => {
-        this.renderer.renderShape(shape);
-      });
+    // Render shapes
+    for (const shape of this.shapes.values()) {
+      this.renderer.renderShape(shape);
+    }
+    
+    // Render projectiles
+    for (const projectile of this.projectiles.values()) {
+      this.renderer.renderProjectile(projectile);
     }
     
     // Render players
-    const players = Object.values(this.gameState.players);
-    if (players.length > 0) {
-      console.log(`Rendering ${players.length} players`);
-      players.forEach(player => {
-        this.renderer.renderPlayer(player, player.id === this.playerId);
-      });
+    for (const player of this.players.values()) {
+      this.renderer.renderPlayer(player, player.id === this.socket.id);
     }
     
-    // Render projectiles (on top)
-    Object.values(this.gameState.projectiles).forEach(projectile => {
-      this.renderer.renderProjectile(projectile);
-    });
-    
-    // Restore context state
     this.ctx.restore();
-    
-    // Draw debug info if not connected
-    if (!this.isConnected) {
-      this.ctx.fillStyle = '#FFFFFF';
-      this.ctx.font = '20px Arial';
-      this.ctx.textAlign = 'center';
-      this.ctx.fillText('Waiting for server connection...', this.canvas.width / 2, this.canvas.height / 2);
-    }
-  }
-
-  private updateUI(): void {
-    if (!this.playerId || !this.gameState.players[this.playerId]) return;
-
-    const player = this.gameState.players[this.playerId];
-    
-    // Update HUD
-    this.updateStatBar('health-bar', player.health, player.maxHealth);
-    
-    // Update score and level
-    const scoreDisplay = document.querySelector('.score-display');
-    const levelDisplay = document.querySelector('.level-display');
-    
-    if (scoreDisplay) scoreDisplay.textContent = `Score: ${player.score}`;
-    if (levelDisplay) levelDisplay.textContent = `Level: ${player.level}`;
-    
-    // Update leaderboard
-    this.updateLeaderboard();
-  }
-
-  private updateStatBar(barId: string, current: number, max: number): void {
-    const bar = document.getElementById(barId);
-    if (!bar) return;
-    
-    const fill = bar.querySelector('.stat-fill') as HTMLElement;
-    const text = bar.querySelector('.stat-text') as HTMLElement;
-    
-    if (fill) {
-      const percentage = Math.max(0, Math.min(100, (current / max) * 100));
-      fill.style.width = `${percentage}%`;
-    }
-    
-    if (text) {
-      text.textContent = `${Math.round(current)}/${Math.round(max)}`;
-    }
-  }
-
-  private updateLeaderboard(): void {
-    const leaderboard = document.getElementById('leaderboard');
-    if (!leaderboard) return;
-    
-    leaderboard.innerHTML = '<h3>Leaderboard</h3>';
-    
-    this.gameState.leaderboard.forEach((entry, index) => {
-      const div = document.createElement('div');
-      div.className = 'leaderboard-entry';
-      if (entry.id === this.playerId) {
-        div.classList.add('current-player');
-      }
-      
-      div.innerHTML = `
-        <span>${index + 1}. ${entry.name}</span>
-        <span>${entry.score}</span>
-      `;
-      
-      leaderboard.appendChild(div);
-    });
-  }
-
-  handleResize(): void {
-    this.camera.resize(this.canvas.width, this.canvas.height);
   }
 }
