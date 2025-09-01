@@ -1,27 +1,35 @@
 {
-  "name": "arras-io-game",
-  "version": "1.0.0",
-  "description": "Arras.io single-player tank game",
+  "name": "arras-io-single-player",
+  "version": "2.0.0",
+  "description": "Arras.io Single-Player Tank Game - No server required",
   "main": "index.html",
-  "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "server": "node server/server.js"
+    "start": "python -m http.server 8080",
+    "start-node": "npx http-server -p 8080",
+    "start-php": "php -S localhost:8080"
   },
-  "dependencies": {
-    "express": "^4.18.2",
-    "socket.io": "^4.7.5",
-    "socket.io-client": "^4.7.5",
-    "cors": "^2.8.5"
-  },
-  "devDependencies": {
-    "vite": "^5.0.0",
-    "typescript": "^5.0.0",
-    "@types/node": "^20.0.0"
-  },
+  "keywords": [
+    "game",
+    "arras.io",
+    "tank",
+    "single-player",
+    "browser-game",
+    "html5",
+    "javascript"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {},
+  "dependencies": {},
   "engines": {
-    "node": ">=16.0.0"
-  }
+    "browsers": "Chrome >= 90, Firefox >= 88, Safari >= 14, Edge >= 90"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/arras-io-single-player"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/arras-io-single-player/issues"
+  },
+  "homepage": "https://github.com/yourusername/arras-io-single-player#readme"
 }

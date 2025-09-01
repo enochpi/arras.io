@@ -3,42 +3,305 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Arras.io Clone - Enhanced Edition</title>
+  <title>Arras.io Clone - Single Player Edition</title>
   
-  <!-- Meta tags for ChatAndBuild -->
-  <meta property="og:title" content="Arras.io Clone - Built with ChatAndBuild">
-  <meta property="og:description" content="A multiplayer tank battle game with enhanced features, larger world, and auto-shoot mechanics">
-  <meta property="og:image" content="https://cdn.chatandbuild.com/images/preview.png">
-  <meta property="keywords" content="no-code, app builder, conversation-driven development, multiplayer game, tank battle, io game">
-  <meta property="twitter:card" content="summary_large_image">
-  <meta property="twitter:title" content="Arras.io Clone - Built with ChatAndBuild">
-  <meta property="twitter:description" content="A multiplayer tank battle game with enhanced features, larger world, and auto-shoot mechanics">
-  <meta property="twitter:image" content="https://cdn.chatandbuild.com/images/preview.png">
-  <meta property="twitter:site" content="@chatandbuild">
-  
-  <link rel="stylesheet" href="style.css">
+  <style>
+    /* Reset and base styles */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+      background: #1a1a2e;
+      color: white;
+      user-select: none;
+    }
+
+    /* Game container */
+    #game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    /* Main game canvas */
+    #gameCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+      background: #0f0f1e;
+    }
+
+    /* Minimap canvas */
+    #minimapCanvas {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      width: 176px;
+      height: 176px;
+      border: 2px solid rgba(0, 178, 225, 0.5);
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.8);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Game UI overlay */
+    #game-ui {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* Score and stats display */
+    #stats {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 15px 20px;
+      border-radius: 10px;
+      border: 2px solid rgba(0, 178, 225, 0.3);
+      pointer-events: auto;
+    }
+
+    #score, #level {
+      font-size: 18px;
+      font-weight: bold;
+      color: #00B2E1;
+      margin-bottom: 5px;
+    }
+
+    /* Health and XP bars */
+    .bar-container {
+      margin-top: 10px;
+      width: 200px;
+    }
+
+    .bar {
+      height: 20px;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 10px;
+      margin-bottom: 8px;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .bar-fill {
+      height: 100%;
+      transition: width 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #health-fill {
+      background: linear-gradient(90deg, #4CAF50, #8BC34A);
+    }
+
+    #xp-fill {
+      background: linear-gradient(90deg, #9C27B0, #E91E63);
+    }
+
+    .bar-text {
+      font-size: 11px;
+      font-weight: bold;
+      color: white;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+      position: absolute;
+      width: 100%;
+      text-align: center;
+      line-height: 20px;
+    }
+
+    /* Controls info */
+    #controls {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 15px;
+      border-radius: 10px;
+      border: 2px solid rgba(0, 178, 225, 0.3);
+      font-size: 12px;
+      pointer-events: auto;
+    }
+
+    #controls h4 {
+      color: #00B2E1;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+
+    #controls div {
+      margin: 5px 0;
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    #controls strong {
+      color: #FFD700;
+      margin-right: 5px;
+    }
+
+    /* Upgrade menu */
+    #upgrade-menu {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.95);
+      border: 3px solid #00B2E1;
+      border-radius: 15px;
+      padding: 30px;
+      display: none;
+      z-index: 100;
+      min-width: 400px;
+    }
+
+    #upgrade-menu.hidden {
+      display: none !important;
+    }
+
+    #upgrade-menu h2 {
+      color: #FFD700;
+      text-align: center;
+      margin-bottom: 20px;
+      font-size: 24px;
+    }
+
+    #upgrade-options {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+    }
+
+    .upgrade-option {
+      background: rgba(0, 178, 225, 0.2);
+      border: 2px solid rgba(0, 178, 225, 0.5);
+      border-radius: 10px;
+      padding: 15px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .upgrade-option:hover {
+      background: rgba(0, 178, 225, 0.4);
+      transform: scale(1.05);
+    }
+
+    .upgrade-option h4 {
+      color: #00B2E1;
+      margin-bottom: 5px;
+    }
+
+    .upgrade-option p {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    /* Minimap label */
+    #minimap-label {
+      position: absolute;
+      bottom: 200px;
+      right: 20px;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+  </style>
 </head>
 <body>
   <div id="game-container">
+    <!-- Main game canvas -->
     <canvas id="gameCanvas"></canvas>
     
+    <!-- Minimap canvas -->
+    <canvas id="minimapCanvas"></canvas>
+    
+    <!-- Game UI overlay -->
     <div id="game-ui">
+      <!-- Stats display -->
+      <div id="stats">
+        <div id="score">Score: 0</div>
+        <div id="level">Level: 1</div>
+        <div class="bar-container">
+          <div class="bar">
+            <div id="health-fill" class="bar-fill" style="width: 100%"></div>
+            <div id="health-text" class="bar-text">100/100</div>
+          </div>
+          <div class="bar">
+            <div id="xp-fill" class="bar-fill" style="width: 0%"></div>
+            <div id="xp-text" class="bar-text">0/100</div>
+          </div>
+        </div>
+      </div>
+      
       <!-- Controls info -->
       <div id="controls">
         <h4>Controls</h4>
         <div><strong>WASD/Arrows:</strong> Move</div>
         <div><strong>Mouse:</strong> Aim</div>
-        <div><strong>Click:</strong> Shoot</div>
-        <div><strong>Hold E:</strong> Auto-Shoot</div>
+        <div><strong>Click/Hold:</strong> Shoot</div>
+        <div><strong>U:</strong> Upgrades</div>
       </div>
       
-      <!-- Minimap -->
-      <div id="minimap">
-        <canvas id="minimapCanvas"></canvas>
+      <!-- Upgrade menu (hidden by default) -->
+      <div id="upgrade-menu" class="hidden">
+        <h2>Choose Upgrade</h2>
+        <div id="upgrade-options">
+          <div class="upgrade-option" data-upgrade="health">
+            <h4>Max Health</h4>
+            <p>+20 HP capacity</p>
+          </div>
+          <div class="upgrade-option" data-upgrade="damage">
+            <h4>Damage</h4>
+            <p>+25% bullet damage</p>
+          </div>
+          <div class="upgrade-option" data-upgrade="reload">
+            <h4>Reload Speed</h4>
+            <p>+20% fire rate</p>
+          </div>
+          <div class="upgrade-option" data-upgrade="speed">
+            <h4>Movement Speed</h4>
+            <p>+15% tank speed</p>
+          </div>
+          <div class="upgrade-option" data-upgrade="regen">
+            <h4>Regeneration</h4>
+            <p>+50% health regen</p>
+          </div>
+          <div class="upgrade-option" data-upgrade="bulletSpeed">
+            <h4>Bullet Speed</h4>
+            <p>+20% projectile velocity</p>
+          </div>
+        </div>
       </div>
+      
+      <!-- Minimap label -->
+      <div id="minimap-label">MINIMAP</div>
     </div>
   </div>
   
-  <script type="module" src="/src/client/main.ts"></script>
+  <!-- Load the configuration file first -->
+  <script src="config.js"></script>
+  <!-- Load canvas manager for cross-browser compatibility -->
+  <script src="canvas-manager.js"></script>
+  <!-- Load the fixed collision system -->
+  <script src="collision-fixed.js"></script>
+  <!-- Then load the single-player game script -->
+  <script src="game.js"></script>
+  <!-- Finally, load the game initializer (starts everything) -->
+  <script src="game-init.js"></script>
 </body>
 </html>
