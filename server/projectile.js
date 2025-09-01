@@ -1,161 +1,123 @@
 /**
- * Optimized Projectile System
- * Uses object pooling and spatial partitioning for better performance
+ * Enhanced Projectile System
  */
 
 class Projectile {
-  constructor(id, owner, startPos, targetPos, damage, speed) {
+  constructor(id, ownerId, position, velocity, damage = 20) {
     this.id = id;
-    this.owner = owner;
-    this.position = { ...startPos };
+    this.ownerId = ownerId;
+    this.position = { ...position };
+    this.velocity = { ...velocity };
     this.damage = damage;
-    this.speed = speed;
-    this.size = 8;
+    this.lifetime = 2000; // 2 seconds
     this.createdAt = Date.now();
-    this.lifetime = 3000; // 3 seconds max lifetime
-    
-    // Calculate velocity
-    const dx = targetPos.x - startPos.x;
-    const dy = targetPos.y - startPos.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    
-    this.velocity = {
-      x: (dx / distance) * speed,
-      y: (dy / distance) * speed
-    };
-    
-    // Grid position for spatial partitioning
-    this.gridX = 0;
-    this.gridY = 0;
   }
 
   update(deltaTime) {
-    this.position.x += this.velocity.x * deltaTime * 60;
-    this.position.y += this.velocity.y * deltaTime * 60;
+    this.position.x += this.velocity.x * deltaTime;
+    this.position.y += this.velocity.y * deltaTime;
     
-    // Update grid position
-    this.gridX = Math.floor(this.position.x / 200);
-    this.gridY = Math.floor(this.position.y / 200);
-    
-    return Date.now() - this.createdAt < this.lifetime;
+    // Check if projectile has expired
+    return (Date.now() - this.createdAt) < this.lifetime;
   }
 
-  isExpired() {
-    return Date.now() - this.createdAt >= this.lifetime;
+  isOutOfBounds(worldWidth, worldHeight) {
+    return this.position.x < -50 || 
+           this.position.x > worldWidth + 50 ||
+           this.position.y < -50 || 
+           this.position.y > worldHeight + 50;
+  }
+
+  getClientData() {
+    return {
+      id: this.id,
+      position: { ...this.position },
+      velocity: { ...this.velocity },
+      damage: this.damage,
+      ownerId: this.ownerId
+    };
   }
 }
 
 class ProjectileSystem {
   constructor() {
     this.projectiles = new Map();
-    this.nextId = 1;
-    this.maxProjectiles = 200; // Limit projectiles for performance
-    
-    // Spatial grid for collision optimization
-    this.grid = new Map();
-    this.gridSize = 200;
+    this.nextProjectileId = 1;
   }
 
   shoot(player, targetPos) {
-    if (this.projectiles.size >= this.maxProjectiles) {
-      // Remove oldest projectile if at limit
-      const oldest = Array.from(this.projectiles.values())
-        .sort((a, b) => a.createdAt - b.createdAt)[0];
-      if (oldest) this.remove(oldest.id);
-    }
+    if (!player || !targetPos) return null;
+
+    // Calculate direction
+    const dx = targetPos.x - player.position.x;
+    const dy = targetPos.y - player.position.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    if (distance === 0) return null;
+
+    // Normalize and apply speed
+    const projectileSpeed = 600;
+    const velocity = {
+      x: (dx / distance) * projectileSpeed,
+      y: (dy / distance) * projectileSpeed
+    };
+
+    // Create projectile slightly in front of player
+    const spawnDistance = 35;
+    const spawnPos = {
+      x: player.position.x + (dx / distance) * spawnDistance,
+      y: player.position.y + (dy / distance) * spawnDistance
+    };
+
+    // Apply damage multiplier from player level
+    const damage = 20 * (player.damageMultiplier || 1);
 
     const projectile = new Projectile(
-      this.nextId++,
+      `proj_${this.nextProjectileId++}`,
       player.id,
-      player.position,
-      targetPos,
-      player.stats.bulletDamage,
-      player.stats.bulletSpeed * 100
+      spawnPos,
+      velocity,
+      damage
     );
-    
+
     this.projectiles.set(projectile.id, projectile);
-    this.addToGrid(projectile);
-    
     return projectile;
   }
 
   update(deltaTime, worldWidth, worldHeight) {
     const toRemove = [];
-    
-    // Clear grid
-    this.grid.clear();
-    
-    for (const [id, projectile] of this.projectiles) {
+
+    this.projectiles.forEach((projectile, id) => {
+      // Update projectile position
       if (!projectile.update(deltaTime)) {
         toRemove.push(id);
-        continue;
       }
       
-      // Check boundaries
-      const pos = projectile.position;
-      if (pos.x < 0 || pos.x > worldWidth || 
-          pos.y < 0 || pos.y > worldHeight) {
+      // Remove if out of bounds
+      if (projectile.isOutOfBounds(worldWidth, worldHeight)) {
         toRemove.push(id);
-        continue;
       }
-      
-      // Re-add to grid
-      this.addToGrid(projectile);
-    }
-    
-    // Batch remove expired projectiles
+    });
+
+    // Remove expired projectiles
     toRemove.forEach(id => this.projectiles.delete(id));
   }
 
-  addToGrid(projectile) {
-    const key = `${projectile.gridX},${projectile.gridY}`;
-    if (!this.grid.has(key)) {
-      this.grid.set(key, []);
-    }
-    this.grid.get(key).push(projectile);
-  }
-
-  getProjectilesInArea(x, y, radius) {
-    const results = [];
-    const gridRadius = Math.ceil(radius / this.gridSize);
-    const centerGridX = Math.floor(x / this.gridSize);
-    const centerGridY = Math.floor(y / this.gridSize);
-    
-    for (let gx = centerGridX - gridRadius; gx <= centerGridX + gridRadius; gx++) {
-      for (let gy = centerGridY - gridRadius; gy <= centerGridY + gridRadius; gy++) {
-        const key = `${gx},${gy}`;
-        const projectiles = this.grid.get(key);
-        if (projectiles) {
-          results.push(...projectiles);
-        }
-      }
-    }
-    
-    return results;
-  }
-
-  remove(projectileId) {
-    return this.projectiles.delete(projectileId);
+  removeProjectile(id) {
+    this.projectiles.delete(id);
   }
 
   getAllProjectiles() {
-    const result = {};
-    for (const [id, proj] of this.projectiles) {
-      result[id] = {
-        id: proj.id,
-        position: proj.position,
-        velocity: proj.velocity,
-        owner: proj.owner,
-        damage: proj.damage,
-        size: proj.size
-      };
-    }
-    return result;
+    const projectilesData = {};
+    this.projectiles.forEach((projectile, id) => {
+      projectilesData[id] = projectile.getClientData();
+    });
+    return projectilesData;
   }
 
-  getProjectileCount() {
-    return this.projectiles.size;
+  clear() {
+    this.projectiles.clear();
   }
 }
 
-module.exports = { Projectile, ProjectileSystem };
+module.exports = { ProjectileSystem, Projectile };

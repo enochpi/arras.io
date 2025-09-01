@@ -1,200 +1,193 @@
 /**
- * Enhanced Collision Detection System
- * Handles projectile collisions with boundaries, players, and shapes
+ * Collision System with spatial partitioning
  */
 
 class CollisionSystem {
   constructor() {
-    this.playerRadius = 25;
-    this.projectileRadius = 8;
+    this.cellSize = 200; // Size of spatial grid cells
   }
 
-  /**
-   * Check if two circles collide
-   */
-  checkCircleCollision(obj1, obj2) {
-    if (!obj1.position || !obj2.position) return false;
-    
-    const dx = obj1.position.x - obj2.position.x;
-    const dy = obj1.position.y - obj2.position.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    
-    return distance < (obj1.radius + obj2.radius);
-  }
-
-  /**
-   * Check projectile collision with world boundaries
-   */
-  checkBoundaryCollision(projectile, worldWidth, worldHeight) {
-    if (!projectile.position) return false;
-    
-    const pos = projectile.position;
-    const radius = projectile.size;
-    
-    return (pos.x - radius <= 0 || pos.x + radius >= worldWidth ||
-            pos.y - radius <= 0 || pos.y + radius >= worldHeight);
-  }
-
-  /**
-   * Check all projectile collisions (players, shapes, boundaries)
-   */
   checkCollisions(projectileSystem, players, shapeSystem, worldWidth, worldHeight) {
     const collisions = [];
     
-    if (!projectileSystem || !projectileSystem.projectiles) return collisions;
+    // Create spatial grid
+    const grid = this.createSpatialGrid(
+      projectileSystem.projectiles,
+      players,
+      shapeSystem.shapes,
+      worldWidth,
+      worldHeight
+    );
     
-    for (const [projId, projectile] of projectileSystem.projectiles) {
-      if (!projectile) continue;
+    // Check projectile-player collisions
+    projectileSystem.projectiles.forEach(projectile => {
+      const nearbyEntities = this.getNearbyEntities(grid, projectile.position);
       
-      // Check boundary collisions
-      if (this.checkBoundaryCollision(projectile, worldWidth, worldHeight)) {
-        collisions.push({
-          type: 'boundary',
-          projectileId: projId
-        });
-        continue;
-      }
-      
-      // Check player collisions (skip owner)
-      if (players && players.size > 0) {
-        for (const [playerId, player] of players) {
-          if (projectile.owner === playerId || !player) continue;
-          
-          const playerPos = player.position || { x: player.x || 0, y: player.y || 0 };
-          
-          const projObj = {
-            position: projectile.position,
-            radius: this.projectileRadius
-          };
-          
-          const playerObj = {
-            position: playerPos,
-            radius: this.playerRadius
-          };
-          
-          if (this.checkCircleCollision(projObj, playerObj)) {
-            collisions.push({
-              type: 'player-hit',
-              projectileId: projId,
-              playerId: playerId,
-              damage: projectile.damage,
-              shooterId: projectile.owner
-            });
-          }
+      // Check against players
+      nearbyEntities.players.forEach(player => {
+        if (player.id !== projectile.ownerId && this.checkCircleCollision(
+          projectile.position, 5,
+          player.position, 20
+        )) {
+          collisions.push({
+            type: 'projectile-player',
+            projectile: projectile,
+            player: player
+          });
         }
-      }
+      });
       
-      // Check shape collisions
-      if (shapeSystem && shapeSystem.shapes) {
-        for (const [shapeId, shape] of shapeSystem.shapes) {
-          if (!shape) continue;
-          
-          const projObj = {
-            position: projectile.position,
-            radius: this.projectileRadius
-          };
-          
-          const shapeObj = {
-            position: shape.position,
-            radius: shape.size
-          };
-          
-          if (this.checkCircleCollision(projObj, shapeObj)) {
-            collisions.push({
-              type: 'shape-hit',
-              projectileId: projId,
-              shapeId: shapeId,
-              damage: projectile.damage,
-              shooterId: projectile.owner
-            });
-          }
+      // Check against shapes
+      nearbyEntities.shapes.forEach(shape => {
+        if (this.checkCircleCollision(
+          projectile.position, 5,
+          shape.position, shape.size
+        )) {
+          collisions.push({
+            type: 'projectile-shape',
+            projectile: projectile,
+            shape: shape
+          });
         }
-      }
-    }
+      });
+    });
+    
+    // Check player-shape collisions
+    players.forEach(player => {
+      const nearbyShapes = this.getNearbyEntities(grid, player.position).shapes;
+      
+      nearbyShapes.forEach(shape => {
+        if (this.checkCircleCollision(
+          player.position, 20,
+          shape.position, shape.size
+        )) {
+          collisions.push({
+            type: 'player-shape',
+            player: player,
+            shape: shape
+          });
+        }
+      });
+    });
     
     return collisions;
   }
 
-  /**
-   * Process collision events
-   */
-  processCollisions(collisions, projectileSystem, players, shapeSystem) {
-    const results = [];
+  createSpatialGrid(projectiles, players, shapes, worldWidth, worldHeight) {
+    const grid = {};
     
-    if (!collisions || !projectileSystem) return results;
+    // Helper to get grid key
+    const getGridKey = (x, y) => {
+      const gridX = Math.floor(x / this.cellSize);
+      const gridY = Math.floor(y / this.cellSize);
+      return `${gridX},${gridY}`;
+    };
     
-    for (const collision of collisions) {
-      if (collision.type === 'boundary') {
-        projectileSystem.remove(collision.projectileId);
-        results.push({ 
-          type: 'boundary-hit', 
-          projectileId: collision.projectileId 
-        });
-      }
-      
-      if (collision.type === 'player-hit' && players) {
-        const player = players.get(collision.playerId);
-        const shooter = players.get(collision.shooterId);
+    // Add players to grid
+    players.forEach(player => {
+      const key = getGridKey(player.position.x, player.position.y);
+      if (!grid[key]) grid[key] = { players: [], shapes: [], projectiles: [] };
+      grid[key].players.push(player);
+    });
+    
+    // Add shapes to grid
+    shapes.forEach(shape => {
+      const key = getGridKey(shape.position.x, shape.position.y);
+      if (!grid[key]) grid[key] = { players: [], shapes: [], projectiles: [] };
+      grid[key].shapes.push(shape);
+    });
+    
+    // Add projectiles to grid
+    projectiles.forEach(projectile => {
+      const key = getGridKey(projectile.position.x, projectile.position.y);
+      if (!grid[key]) grid[key] = { players: [], shapes: [], projectiles: [] };
+      grid[key].projectiles.push(projectile);
+    });
+    
+    return grid;
+  }
+
+  getNearbyEntities(grid, position) {
+    const entities = { players: [], shapes: [], projectiles: [] };
+    
+    // Check surrounding cells
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        const gridX = Math.floor(position.x / this.cellSize) + dx;
+        const gridY = Math.floor(position.y / this.cellSize) + dy;
+        const key = `${gridX},${gridY}`;
         
-        if (player && shooter && typeof player.takeDamage === 'function') {
-          const killed = player.takeDamage(collision.damage);
-          const points = killed ? 100 : 25;
-          
-          if (typeof shooter.addScore === 'function') {
-            shooter.addScore(points);
-          }
-          
-          projectileSystem.remove(collision.projectileId);
-          
-          results.push({
-            type: 'player-hit',
-            playerId: collision.playerId,
-            shooterId: collision.shooterId,
-            damage: collision.damage,
-            killed: killed,
-            points: points
-          });
-        }
-      }
-      
-      if (collision.type === 'shape-hit' && shapeSystem) {
-        const shape = shapeSystem.getShape(collision.shapeId);
-        const shooter = players ? players.get(collision.shooterId) : null;
-        
-        if (shape && shooter) {
-          const destroyed = shape.takeDamage(collision.damage);
-          
-          if (destroyed) {
-            // Award XP to shooter
-            if (typeof shooter.addScore === 'function') {
-              shooter.addScore(shape.xpReward);
-            }
-            
-            // Remove destroyed shape
-            shapeSystem.removeShape(collision.shapeId);
-            
-            results.push({
-              type: 'shape-destroyed',
-              shapeId: collision.shapeId,
-              shooterId: collision.shooterId,
-              xpAwarded: shape.xpReward,
-              shapeType: shape.type
-            });
-          } else {
-            results.push({
-              type: 'shape-damaged',
-              shapeId: collision.shapeId,
-              shooterId: collision.shooterId,
-              damage: collision.damage,
-              remainingHealth: shape.health
-            });
-          }
-          
-          // Remove projectile
-          projectileSystem.remove(collision.projectileId);
+        if (grid[key]) {
+          entities.players.push(...grid[key].players);
+          entities.shapes.push(...grid[key].shapes);
+          entities.projectiles.push(...grid[key].projectiles);
         }
       }
     }
+    
+    return entities;
+  }
+
+  checkCircleCollision(pos1, radius1, pos2, radius2) {
+    const dx = pos1.x - pos2.x;
+    const dy = pos1.y - pos2.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    return distance < radius1 + radius2;
+  }
+
+  processCollisions(collisions, projectileSystem, players, shapeSystem) {
+    const results = [];
+    
+    collisions.forEach(collision => {
+      if (collision.type === 'projectile-player') {
+        const killed = collision.player.takeDamage(collision.projectile.damage);
+        projectileSystem.removeProjectile(collision.projectile.id);
+        
+        if (killed) {
+          // Award XP to shooter
+          const shooter = players.get(collision.projectile.ownerId);
+          if (shooter) {
+            shooter.addXP(100 + collision.player.level * 20);
+          }
+        }
+        
+        results.push({
+          type: 'player-hit',
+          playerId: collision.player.id,
+          damage: collision.projectile.damage,
+          killed: killed
+        });
+      } else if (collision.type === 'projectile-shape') {
+        const destroyed = shapeSystem.damageShape(collision.shape.id, collision.projectile.damage);
+        projectileSystem.removeProjectile(collision.projectile.id);
+        
+        if (destroyed) {
+          // Award XP to shooter
+          const shooter = players.get(collision.projectile.ownerId);
+          if (shooter) {
+            const xpReward = shapeSystem.getShapeXPReward(collision.shape.type);
+            shooter.addXP(xpReward);
+            
+            results.push({
+              type: 'shape-destroyed',
+              shapeType: collision.shape.type,
+              xpAwarded: xpReward
+            });
+          }
+        }
+      } else if (collision.type === 'player-shape') {
+        // Push player away from shape
+        const dx = collision.player.position.x - collision.shape.position.x;
+        const dy = collision.player.position.y - collision.shape.position.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance > 0) {
+          const pushForce = 5;
+          collision.player.velocity.x += (dx / distance) * pushForce;
+          collision.player.velocity.y += (dy / distance) * pushForce;
+        }
+      }
+    });
     
     return results;
   }

@@ -3,92 +3,42 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Arras.io - Single Player Tank Game</title>
-  <meta property="og:title" content="Arras.io Tank Game - Built with ChatAndBuild">
-  <meta property="og:description" content="Single-player tank shooter game with enemy shapes and XP system">
+  <title>Arras.io Clone - Enhanced Edition</title>
+  
+  <!-- Meta tags for ChatAndBuild -->
+  <meta property="og:title" content="Arras.io Clone - Built with ChatAndBuild">
+  <meta property="og:description" content="A multiplayer tank battle game with enhanced features, larger world, and auto-shoot mechanics">
   <meta property="og:image" content="https://cdn.chatandbuild.com/images/preview.png">
-  <meta property="keywords" content="no-code, app builder, conversation-driven development, tank game, arras.io">
+  <meta property="keywords" content="no-code, app builder, conversation-driven development, multiplayer game, tank battle, io game">
   <meta property="twitter:card" content="summary_large_image">
-  <meta property="twitter:title" content="Arras.io Tank Game - Built with ChatAndBuild">
-  <meta property="twitter:description" content="Single-player tank shooter game with enemy shapes and XP system">
+  <meta property="twitter:title" content="Arras.io Clone - Built with ChatAndBuild">
+  <meta property="twitter:description" content="A multiplayer tank battle game with enhanced features, larger world, and auto-shoot mechanics">
   <meta property="twitter:image" content="https://cdn.chatandbuild.com/images/preview.png">
   <meta property="twitter:site" content="@chatandbuild">
+  
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="game-container">
-    <!-- Main game canvas -->
     <canvas id="gameCanvas"></canvas>
     
-    <!-- UI Overlay -->
     <div id="game-ui">
-      <!-- Stats Display -->
-      <div class="stats-container">
-        <div class="score-display">Score: <span id="score">0</span></div>
-        <div class="level-display">Level: <span id="level">1</span></div>
-        
-        <div class="stat-bars">
-          <div class="stat-bar health-bar">
-            <span class="stat-bar-label">Health</span>
-            <div class="stat-fill" id="health-fill"></div>
-            <div class="stat-text" id="health-text">100/100</div>
-          </div>
-          
-          <div class="stat-bar xp-bar">
-            <span class="stat-bar-label">Experience</span>
-            <div class="stat-fill" id="xp-fill"></div>
-            <div class="stat-text" id="xp-text">0/100</div>
-          </div>
-        </div>
+      <!-- Controls info -->
+      <div id="controls">
+        <h4>Controls</h4>
+        <div><strong>WASD/Arrows:</strong> Move</div>
+        <div><strong>Mouse:</strong> Aim</div>
+        <div><strong>Click:</strong> Shoot</div>
+        <div><strong>Hold E:</strong> Auto-Shoot</div>
       </div>
       
       <!-- Minimap -->
       <div id="minimap">
         <canvas id="minimapCanvas"></canvas>
       </div>
-      
-      <!-- Controls Info -->
-      <div id="controls">
-        <h4>Controls</h4>
-        <div><strong>WASD/Arrows:</strong> Move</div>
-        <div><strong>Mouse:</strong> Aim</div>
-        <div><strong>Click:</strong> Shoot</div>
-        <div><strong>U:</strong> Upgrades</div>
-      </div>
-      
-      <!-- Upgrade Menu (Hidden by default) -->
-      <div id="upgrade-menu" class="hidden">
-        <h3>Choose Your Upgrade</h3>
-        <div id="upgrade-options">
-          <button class="upgrade-option" data-upgrade="health">
-            <h4>Max Health</h4>
-            <p>+20 HP capacity</p>
-          </button>
-          <button class="upgrade-option" data-upgrade="regen">
-            <h4>Health Regen</h4>
-            <p>Faster healing</p>
-          </button>
-          <button class="upgrade-option" data-upgrade="damage">
-            <h4>Bullet Damage</h4>
-            <p>+25% damage</p>
-          </button>
-          <button class="upgrade-option" data-upgrade="reload">
-            <h4>Reload Speed</h4>
-            <p>Shoot faster</p>
-          </button>
-          <button class="upgrade-option" data-upgrade="speed">
-            <h4>Movement Speed</h4>
-            <p>+15% speed</p>
-          </button>
-          <button class="upgrade-option" data-upgrade="bulletSpeed">
-            <h4>Bullet Speed</h4>
-            <p>Faster projectiles</p>
-          </button>
-        </div>
-      </div>
     </div>
   </div>
   
-  <script src="game.js"></script>
+  <script type="module" src="/src/client/main.ts"></script>
 </body>
 </html>

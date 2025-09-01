@@ -1,242 +1,226 @@
 /**
- * Shape System for Arras.io Game
- * Handles enemy shapes with different types, health, and XP rewards
+ * Enhanced Shape System with better distribution
  */
 
 class Shape {
-  constructor(id, type, x, y) {
+  constructor(id, type, position, size) {
     this.id = id;
     this.type = type;
-    this.position = { x, y };
+    this.position = { ...position };
+    this.size = size;
     this.health = this.getMaxHealth();
-    this.maxHealth = this.getMaxHealth();
-    this.size = this.getSize();
-    this.xpReward = this.getXPReward();
-    this.color = this.getColor();
-    this.createdAt = Date.now();
-    
-    // Movement properties (shapes can drift slowly)
-    this.velocity = {
-      x: (Math.random() - 0.5) * 10, // Very slow drift
-      y: (Math.random() - 0.5) * 10
-    };
+    this.maxHealth = this.health;
+    this.rotation = Math.random() * Math.PI * 2;
+    this.rotationSpeed = (Math.random() - 0.5) * 0.02;
   }
 
-  /**
-   * Get health based on shape type
-   */
   getMaxHealth() {
     switch(this.type) {
-      case 'triangle': return 1;
-      case 'square': return 2;
-      case 'pentagon': return 5;
-      case 'hexagon': return 10;
-      default: return 1;
-    }
-  }
-
-  /**
-   * Get size based on shape type
-   */
-  getSize() {
-    switch(this.type) {
-      case 'triangle': return 15;
-      case 'square': return 20;
-      case 'pentagon': return 25;
-      case 'hexagon': return 30;
-      default: return 15;
-    }
-  }
-
-  /**
-   * Get XP reward for destroying this shape
-   */
-  getXPReward() {
-    switch(this.type) {
-      case 'triangle': return 10;
-      case 'square': return 25;
-      case 'pentagon': return 75;
+      case 'triangle': return 30;
+      case 'square': return 50;
+      case 'pentagon': return 100;
       case 'hexagon': return 150;
-      default: return 10;
+      default: return 50;
     }
   }
 
-  /**
-   * Get color based on shape type
-   */
-  getColor() {
-    switch(this.type) {
-      case 'triangle': return '#FFE135'; // Yellow
-      case 'square': return '#FC7677'; // Red
-      case 'pentagon': return '#00B2E1'; // Blue
-      case 'hexagon': return '#00E06B'; // Green
-      default: return '#FFE135';
-    }
+  update(deltaTime) {
+    // Slowly rotate shape
+    this.rotation += this.rotationSpeed;
   }
 
-  /**
-   * Update shape position (slow drift)
-   */
-  update(deltaTime, worldWidth, worldHeight) {
-    this.position.x += this.velocity.x * deltaTime;
-    this.position.y += this.velocity.y * deltaTime;
-    
-    // Bounce off world boundaries
-    if (this.position.x <= this.size || this.position.x >= worldWidth - this.size) {
-      this.velocity.x *= -1;
-      this.position.x = Math.max(this.size, Math.min(worldWidth - this.size, this.position.x));
-    }
-    
-    if (this.position.y <= this.size || this.position.y >= worldHeight - this.size) {
-      this.velocity.y *= -1;
-      this.position.y = Math.max(this.size, Math.min(worldHeight - this.size, this.position.y));
-    }
-  }
-
-  /**
-   * Take damage and return true if destroyed
-   */
   takeDamage(damage) {
     this.health -= damage;
     return this.health <= 0;
   }
 
-  /**
-   * Get client data for rendering
-   */
   getClientData() {
     return {
       id: this.id,
       type: this.type,
-      position: this.position,
+      position: { ...this.position },
+      size: this.size,
       health: this.health,
       maxHealth: this.maxHealth,
-      size: this.size,
-      color: this.color
+      rotation: this.rotation,
+      color: this.getColor()
     };
+  }
+
+  getColor() {
+    switch(this.type) {
+      case 'triangle': return '#FF6B6B';
+      case 'square': return '#FFE66D';
+      case 'pentagon': return '#4ECDC4';
+      case 'hexagon': return '#A8E6CF';
+      default: return '#888888';
+    }
   }
 }
 
 class ShapeSystem {
   constructor(worldWidth, worldHeight) {
-    this.shapes = new Map();
-    this.nextId = 1;
     this.worldWidth = worldWidth;
     this.worldHeight = worldHeight;
-    this.maxShapes = 50; // Maximum shapes on map
-    this.spawnRate = 0.5; // Shapes per second
-    this.lastSpawn = Date.now();
+    this.shapes = new Map();
+    this.nextShapeId = 1;
+    this.maxShapes = 150; // Increased for larger world
+    this.spawnTimer = 0;
+    this.spawnInterval = 1000; // Spawn every second
     
-    // Shape spawn probabilities
-    this.spawnWeights = {
-      triangle: 0.5,   // 50% chance
-      square: 0.3,     // 30% chance
-      pentagon: 0.15,  // 15% chance
-      hexagon: 0.05    // 5% chance
+    // Shape distribution weights
+    this.shapeWeights = {
+      triangle: 40,
+      square: 30,
+      pentagon: 20,
+      hexagon: 10
     };
     
-    this.initializeShapes();
+    // Initial spawn
+    this.spawnInitialShapes();
   }
 
-  /**
-   * Initialize starting shapes on the map
-   */
-  initializeShapes() {
-    const initialShapes = 20;
-    for (let i = 0; i < initialShapes; i++) {
-      this.spawnRandomShape();
+  spawnInitialShapes() {
+    const initialCount = Math.floor(this.maxShapes * 0.7);
+    
+    for (let i = 0; i < initialCount; i++) {
+      this.spawnShape();
     }
   }
 
-  /**
-   * Spawn a random shape at a random location
-   */
-  spawnRandomShape() {
-    if (this.shapes.size >= this.maxShapes) return null;
-    
+  spawnShape() {
+    if (this.shapes.size >= this.maxShapes) return;
+
     const type = this.getRandomShapeType();
-    const margin = 100;
-    const x = margin + Math.random() * (this.worldWidth - 2 * margin);
-    const y = margin + Math.random() * (this.worldHeight - 2 * margin);
+    const size = this.getShapeSize(type);
     
-    const shape = new Shape(this.nextId++, type, x, y);
+    // Find a valid spawn position
+    let position;
+    let attempts = 0;
+    const maxAttempts = 50;
+    
+    do {
+      position = {
+        x: Math.random() * (this.worldWidth - 200) + 100,
+        y: Math.random() * (this.worldHeight - 200) + 100
+      };
+      attempts++;
+    } while (this.isPositionOccupied(position, size * 2) && attempts < maxAttempts);
+    
+    if (attempts >= maxAttempts) return; // Could not find valid position
+    
+    const shape = new Shape(
+      `shape_${this.nextShapeId++}`,
+      type,
+      position,
+      size
+    );
+    
     this.shapes.set(shape.id, shape);
-    
-    return shape;
   }
 
-  /**
-   * Get random shape type based on spawn weights
-   */
-  getRandomShapeType() {
-    const rand = Math.random();
-    let cumulative = 0;
-    
-    for (const [type, weight] of Object.entries(this.spawnWeights)) {
-      cumulative += weight;
-      if (rand <= cumulative) {
-        return type;
+  isPositionOccupied(position, minDistance) {
+    for (const shape of this.shapes.values()) {
+      const dx = shape.position.x - position.x;
+      const dy = shape.position.y - position.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      if (distance < minDistance + shape.size) {
+        return true;
       }
     }
-    
-    return 'triangle'; // Fallback
+    return false;
   }
 
-  /**
-   * Update all shapes
-   */
-  update(deltaTime) {
-    // Update existing shapes
-    for (const [id, shape] of this.shapes) {
-      shape.update(deltaTime, this.worldWidth, this.worldHeight);
+  getRandomShapeType() {
+    const totalWeight = Object.values(this.shapeWeights).reduce((a, b) => a + b, 0);
+    let random = Math.random() * totalWeight;
+    
+    for (const [type, weight] of Object.entries(this.shapeWeights)) {
+      random -= weight;
+      if (random <= 0) return type;
     }
+    
+    return 'square'; // Fallback
+  }
+
+  getShapeSize(type) {
+    switch(type) {
+      case 'triangle': return 20;
+      case 'square': return 25;
+      case 'pentagon': return 30;
+      case 'hexagon': return 35;
+      default: return 25;
+    }
+  }
+
+  getShapeXPReward(type) {
+    switch(type) {
+      case 'triangle': return 10;
+      case 'square': return 25;
+      case 'pentagon': return 50;
+      case 'hexagon': return 100;
+      default: return 10;
+    }
+  }
+
+  update(deltaTime) {
+    // Update all shapes
+    this.shapes.forEach(shape => {
+      shape.update(deltaTime);
+    });
     
     // Spawn new shapes periodically
-    const now = Date.now();
-    if (now - this.lastSpawn >= (1000 / this.spawnRate)) {
-      this.spawnRandomShape();
-      this.lastSpawn = now;
+    this.spawnTimer += deltaTime * 1000;
+    if (this.spawnTimer >= this.spawnInterval) {
+      this.spawnTimer = 0;
+      
+      // Spawn multiple shapes if we're below the target
+      const deficit = this.maxShapes - this.shapes.size;
+      const toSpawn = Math.min(3, Math.ceil(deficit * 0.1));
+      
+      for (let i = 0; i < toSpawn; i++) {
+        this.spawnShape();
+      }
     }
   }
 
-  /**
-   * Remove shape by ID
-   */
-  removeShape(shapeId) {
-    return this.shapes.delete(shapeId);
-  }
-
-  /**
-   * Get shape by ID
-   */
-  getShape(shapeId) {
-    return this.shapes.get(shapeId);
-  }
-
-  /**
-   * Get all shapes for client
-   */
-  getAllShapes() {
-    const result = {};
-    for (const [id, shape] of this.shapes) {
-      result[id] = shape.getClientData();
-    }
-    return result;
-  }
-
-  /**
-   * Get shapes count by type (for debugging)
-   */
-  getShapeStats() {
-    const stats = { triangle: 0, square: 0, pentagon: 0, hexagon: 0, total: 0 };
+  damageShape(shapeId, damage) {
+    const shape = this.shapes.get(shapeId);
+    if (!shape) return false;
     
-    for (const shape of this.shapes.values()) {
-      stats[shape.type]++;
-      stats.total++;
+    const destroyed = shape.takeDamage(damage);
+    if (destroyed) {
+      this.shapes.delete(shapeId);
     }
+    
+    return destroyed;
+  }
+
+  getAllShapes() {
+    const shapesData = {};
+    this.shapes.forEach((shape, id) => {
+      shapesData[id] = shape.getClientData();
+    });
+    return shapesData;
+  }
+
+  getShapeStats() {
+    const stats = {
+      triangle: 0,
+      square: 0,
+      pentagon: 0,
+      hexagon: 0
+    };
+    
+    this.shapes.forEach(shape => {
+      if (stats[shape.type] !== undefined) {
+        stats[shape.type]++;
+      }
+    });
     
     return stats;
   }
 }
 
-module.exports = { Shape, ShapeSystem };
+module.exports = { ShapeSystem, Shape };

@@ -1,51 +1,93 @@
 /**
  * Camera System
- * Handles viewport and smooth camera following
+ * 
+ * Manages viewport following and smooth camera movement
+ * Essential for navigating the EXPANDED 6000x6000 world
  */
 
 export class Camera {
-  private x = 0;
-  private y = 0;
-  private targetX = 0;
-  private targetY = 0;
-  private smoothing = 0.1;
+  // Current camera position (top-left corner of viewport)
+  public x: number = 0;
+  public y: number = 0;
   
-  constructor(
-    private viewportWidth: number,
-    private viewportHeight: number
-  ) {}
-
-  follow(target: { x: number; y: number }): void {
-    this.targetX = target.x - this.viewportWidth / 2;
-    this.targetY = target.y - this.viewportHeight / 2;
+  // Target position for smooth following
+  private targetX: number = 0;
+  private targetY: number = 0;
+  
+  // Viewport dimensions
+  public viewportWidth: number;
+  public viewportHeight: number;
+  
+  constructor(viewportWidth: number, viewportHeight: number) {
+    this.viewportWidth = viewportWidth;
+    this.viewportHeight = viewportHeight;
+  }
+  
+  /**
+   * Set camera target position (instant snap)
+   */
+  setTarget(x: number, y: number): void {
+    // Center camera on target
+    this.targetX = x - this.viewportWidth / 2;
+    this.targetY = y - this.viewportHeight / 2;
     
-    // Smooth camera movement
-    this.x += (this.targetX - this.x) * this.smoothing;
-    this.y += (this.targetY - this.y) * this.smoothing;
+    // Snap to target immediately
+    this.x = this.targetX;
+    this.y = this.targetY;
   }
-
-  apply(ctx: CanvasRenderingContext2D): void {
-    ctx.translate(-this.x, -this.y);
+  
+  /**
+   * Update camera position with smooth following
+   * @param targetX - World X position to follow
+   * @param targetY - World Y position to follow
+   * @param smoothing - Smoothing factor (0-1, lower = smoother)
+   */
+  update(targetX: number, targetY: number, smoothing: number = 0.1): void {
+    // Update target position (centered on target)
+    this.targetX = targetX - this.viewportWidth / 2;
+    this.targetY = targetY - this.viewportHeight / 2;
+    
+    // Smooth camera movement using linear interpolation
+    this.x += (this.targetX - this.x) * smoothing;
+    this.y += (this.targetY - this.y) * smoothing;
   }
-
-  screenToWorld(screenX: number, screenY: number, playerPos: { x: number; y: number }): { x: number; y: number } {
+  
+  /**
+   * Update viewport dimensions (called on window resize)
+   */
+  updateViewport(width: number, height: number): void {
+    this.viewportWidth = width;
+    this.viewportHeight = height;
+  }
+  
+  /**
+   * Convert world coordinates to screen coordinates
+   */
+  worldToScreen(worldX: number, worldY: number): { x: number; y: number } {
+    return {
+      x: worldX - this.x,
+      y: worldY - this.y
+    };
+  }
+  
+  /**
+   * Convert screen coordinates to world coordinates
+   */
+  screenToWorld(screenX: number, screenY: number): { x: number; y: number } {
     return {
       x: screenX + this.x,
       y: screenY + this.y
     };
   }
-
-  updateViewport(width: number, height: number): void {
-    this.viewportWidth = width;
-    this.viewportHeight = height;
-  }
-
-  getViewBounds(): { left: number; right: number; top: number; bottom: number } {
-    return {
-      left: this.x,
-      right: this.x + this.viewportWidth,
-      top: this.y,
-      bottom: this.y + this.viewportHeight
-    };
+  
+  /**
+   * Check if a position is within the camera view
+   * Used for culling optimization
+   */
+  isInView(x: number, y: number, margin: number = 100): boolean {
+    return x >= this.x - margin &&
+           x <= this.x + this.viewportWidth + margin &&
+           y >= this.y - margin &&
+           y <= this.y + this.viewportHeight + margin;
   }
 }

@@ -1,165 +1,240 @@
-import { Player, Projectile } from './GameClient';
+/**
+ * Renderer Module
+ * 
+ * Handles all visual rendering for the game including:
+ * - Players, projectiles, shapes
+ * - Grid background and world boundaries
+ * - Visual effects (auto-shoot, particles)
+ * - Optimized for the EXPANDED 6000x6000 world
+ */
 
+import { Camera } from './Camera';
+
+// Shape interface definition for rendering
 export interface Shape {
   id: string;
-  type: string;
   position: { x: number; y: number };
+  size: number;
+  type: 'triangle' | 'square' | 'pentagon' | 'hexagon';
+  rotation: number;
   health: number;
   maxHealth: number;
-  size: number;
   color: string;
 }
 
-export class Renderer {
-  constructor(private ctx: CanvasRenderingContext2D) {}
+// Player interface for rendering
+export interface Player {
+  id: string;
+  position: { x: number; y: number };
+  rotation: number;
+  health: number;
+  maxHealth: number;
+  name: string;
+}
 
-  renderGrid(worldWidth: number, worldHeight: number): void {
+// Projectile interface for rendering
+export interface Projectile {
+  id: string;
+  position: { x: number; y: number };
+  velocity: { x: number; y: number };
+}
+
+export class Renderer {
+  // Store canvas context reference
+  private ctx: CanvasRenderingContext2D;
+  
+  constructor(ctx: CanvasRenderingContext2D) {
+    this.ctx = ctx;
+  }
+  
+  /**
+   * Render the background grid
+   * Only renders visible portion for performance
+   */
+  renderGrid(worldWidth: number, worldHeight: number, camera: Camera): void {
     const gridSize = 50;
-    
-    this.ctx.strokeStyle = 'rgba(100, 100, 120, 0.15)';
+    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
     this.ctx.lineWidth = 1;
     
-    // Vertical lines
-    for (let x = 0; x <= worldWidth; x += gridSize) {
+    // Calculate visible grid bounds
+    const startX = Math.floor(camera.x / gridSize) * gridSize;
+    const endX = Math.ceil((camera.x + camera.viewportWidth) / gridSize) * gridSize;
+    const startY = Math.floor(camera.y / gridSize) * gridSize;
+    const endY = Math.ceil((camera.y + camera.viewportHeight) / gridSize) * gridSize;
+    
+    // Draw vertical lines
+    for (let x = startX; x <= endX && x <= worldWidth; x += gridSize) {
       this.ctx.beginPath();
-      this.ctx.moveTo(x, 0);
-      this.ctx.lineTo(x, worldHeight);
+      this.ctx.moveTo(x, Math.max(0, startY));
+      this.ctx.lineTo(x, Math.min(worldHeight, endY));
       this.ctx.stroke();
     }
     
-    // Horizontal lines
-    for (let y = 0; y <= worldHeight; y += gridSize) {
+    // Draw horizontal lines
+    for (let y = startY; y <= endY && y <= worldHeight; y += gridSize) {
       this.ctx.beginPath();
-      this.ctx.moveTo(0, y);
-      this.ctx.lineTo(worldWidth, y);
+      this.ctx.moveTo(Math.max(0, startX), y);
+      this.ctx.lineTo(Math.min(worldWidth, endX), y);
       this.ctx.stroke();
     }
   }
-
+  
+  /**
+   * Render world boundaries with warning gradient
+   * Shows the edges of the 6000x6000 world
+   */
+  renderWorldBoundaries(worldWidth: number, worldHeight: number): void {
+    const borderWidth = 5;
+    const glowSize = 50;
+    
+    // Create gradient for boundary glow effect
+    this.ctx.strokeStyle = '#00B2E1';
+    this.ctx.lineWidth = borderWidth;
+    
+    // Draw main border
+    this.ctx.strokeRect(0, 0, worldWidth, worldHeight);
+    
+    // Draw warning gradient near edges
+    const gradient = this.ctx.createLinearGradient(0, 0, glowSize, 0);
+    gradient.addColorStop(0, 'rgba(255, 0, 0, 0.3)');
+    gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+    
+    // Left edge
+    this.ctx.fillStyle = gradient;
+    this.ctx.fillRect(0, 0, glowSize, worldHeight);
+    
+    // Right edge
+    this.ctx.save();
+    this.ctx.translate(worldWidth, 0);
+    this.ctx.scale(-1, 1);
+    this.ctx.fillStyle = gradient;
+    this.ctx.fillRect(0, 0, glowSize, worldHeight);
+    this.ctx.restore();
+    
+    // Top edge
+    const vGradient = this.ctx.createLinearGradient(0, 0, 0, glowSize);
+    vGradient.addColorStop(0, 'rgba(255, 0, 0, 0.3)');
+    vGradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+    this.ctx.fillStyle = vGradient;
+    this.ctx.fillRect(0, 0, worldWidth, glowSize);
+    
+    // Bottom edge
+    this.ctx.save();
+    this.ctx.translate(0, worldHeight);
+    this.ctx.scale(1, -1);
+    this.ctx.fillStyle = vGradient;
+    this.ctx.fillRect(0, 0, worldWidth, glowSize);
+    this.ctx.restore();
+  }
+  
+  /**
+   * Render a player tank
+   */
   renderPlayer(player: Player, isCurrentPlayer: boolean): void {
-    const { x, y } = player.position;
+    const { position, rotation, health, maxHealth, name } = player;
     
     this.ctx.save();
-    this.ctx.translate(x, y);
-    this.ctx.rotate(player.rotation);
+    this.ctx.translate(position.x, position.y);
     
-    // Tank shadow
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-    this.ctx.beginPath();
-    this.ctx.arc(3, 3, 22, 0, Math.PI * 2);
-    this.ctx.fill();
+    // Draw health bar above player
+    this.renderHealthBar(health, maxHealth, -30);
     
-    // Tank body with gradient
-    const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, 20);
+    // Draw player name
+    this.ctx.fillStyle = isCurrentPlayer ? '#00B2E1' : '#FFFFFF';
+    this.ctx.font = 'bold 12px Arial';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText(name, 0, -40);
+    
+    // Rotate for tank direction
+    this.ctx.rotate(rotation);
+    
+    // Draw tank body with gradient
+    const bodyGradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, 20);
     if (isCurrentPlayer) {
-      gradient.addColorStop(0, '#00D4FF');
-      gradient.addColorStop(1, '#0082A3');
+      bodyGradient.addColorStop(0, '#00B2E1');
+      bodyGradient.addColorStop(1, '#0099CC');
     } else {
-      gradient.addColorStop(0, '#5CDB5C');
-      gradient.addColorStop(1, '#388E3C');
+      bodyGradient.addColorStop(0, '#FF6B6B');
+      bodyGradient.addColorStop(1, '#CC5555');
     }
     
-    this.ctx.fillStyle = gradient;
+    this.ctx.fillStyle = bodyGradient;
     this.ctx.beginPath();
     this.ctx.arc(0, 0, 20, 0, Math.PI * 2);
     this.ctx.fill();
     
-    // Tank outline
-    this.ctx.strokeStyle = isCurrentPlayer ? '#00B2E1' : '#4CAF50';
+    // Draw tank outline
+    this.ctx.strokeStyle = isCurrentPlayer ? '#00D4FF' : '#FF8888';
     this.ctx.lineWidth = 2;
     this.ctx.stroke();
     
-    // Tank barrel with gradient
-    const barrelGradient = this.ctx.createLinearGradient(0, -4, 0, 4);
-    if (isCurrentPlayer) {
-      barrelGradient.addColorStop(0, '#0099CC');
-      barrelGradient.addColorStop(1, '#006688');
-    } else {
-      barrelGradient.addColorStop(0, '#449944');
-      barrelGradient.addColorStop(1, '#336633');
-    }
+    // Draw tank barrel
+    this.ctx.fillStyle = isCurrentPlayer ? '#0088BB' : '#BB4444';
+    this.ctx.fillRect(15, -5, 25, 10);
     
-    this.ctx.fillStyle = barrelGradient;
-    this.ctx.fillRect(0, -5, 35, 10);
-    
-    // Barrel outline
-    this.ctx.strokeStyle = isCurrentPlayer ? '#005577' : '#225522';
+    // Draw barrel outline
+    this.ctx.strokeStyle = isCurrentPlayer ? '#00AADD' : '#DD6666';
     this.ctx.lineWidth = 1;
-    this.ctx.strokeRect(0, -5, 35, 10);
+    this.ctx.strokeRect(15, -5, 25, 10);
     
     this.ctx.restore();
-    
-    // Enhanced health bar
-    this.renderHealthBar(x, y - 35, player.health, player.maxHealth, 50, 6);
-    
-    // Player name with shadow
-    this.ctx.fillStyle = '#000';
-    this.ctx.font = 'bold 14px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText(player.name, x + 1, y - 39);
-    
-    this.ctx.fillStyle = '#FFF';
-    this.ctx.fillText(player.name, x, y - 40);
-    
-    // Level indicator with glow
-    this.ctx.shadowColor = '#FFD700';
-    this.ctx.shadowBlur = 10;
-    this.ctx.fillStyle = '#FFD700';
-    this.ctx.font = 'bold 12px Arial';
-    this.ctx.fillText(`Lv.${player.level}`, x, y + 35);
-    this.ctx.shadowBlur = 0;
   }
-
+  
+  /**
+   * Render a projectile with trail effect
+   */
   renderProjectile(projectile: Projectile): void {
-    const { x, y } = projectile.position;
+    const { position, velocity } = projectile;
     
-    // Projectile trail
-    this.ctx.strokeStyle = 'rgba(255, 215, 0, 0.3)';
+    this.ctx.save();
+    
+    // Draw trail effect
+    const trailLength = 20;
+    const angle = Math.atan2(velocity.y, velocity.x);
+    const trailX = position.x - Math.cos(angle) * trailLength;
+    const trailY = position.y - Math.sin(angle) * trailLength;
+    
+    const gradient = this.ctx.createLinearGradient(
+      trailX, trailY,
+      position.x, position.y
+    );
+    gradient.addColorStop(0, 'rgba(255, 230, 0, 0)');
+    gradient.addColorStop(1, 'rgba(255, 230, 0, 0.8)');
+    
+    this.ctx.strokeStyle = gradient;
     this.ctx.lineWidth = 6;
     this.ctx.beginPath();
-    this.ctx.moveTo(x - projectile.velocity.x * 0.5, y - projectile.velocity.y * 0.5);
-    this.ctx.lineTo(x, y);
+    this.ctx.moveTo(trailX, trailY);
+    this.ctx.lineTo(position.x, position.y);
     this.ctx.stroke();
     
-    // Main bullet with gradient
-    const gradient = this.ctx.createRadialGradient(x, y, 0, x, y, 5);
-    gradient.addColorStop(0, '#FFFF00');
-    gradient.addColorStop(0.5, '#FFD700');
-    gradient.addColorStop(1, '#FFA000');
-    
-    this.ctx.fillStyle = gradient;
+    // Draw projectile core
+    this.ctx.fillStyle = '#FFE600';
     this.ctx.beginPath();
-    this.ctx.arc(x, y, 5, 0, Math.PI * 2);
+    this.ctx.arc(position.x, position.y, 5, 0, Math.PI * 2);
     this.ctx.fill();
     
-    // Glow effect
-    this.ctx.shadowColor = '#FFD700';
-    this.ctx.shadowBlur = 15;
-    this.ctx.fillStyle = 'rgba(255, 215, 0, 0.5)';
-    this.ctx.beginPath();
-    this.ctx.arc(x, y, 8, 0, Math.PI * 2);
+    // Draw glow effect
+    this.ctx.shadowBlur = 10;
+    this.ctx.shadowColor = '#FFE600';
     this.ctx.fill();
     this.ctx.shadowBlur = 0;
-  }
-
-  renderShape(shape: Shape): void {
-    const { x, y } = shape.position;
-    const sides = this.getShapeSides(shape.type);
-    const color = this.getShapeColor(shape.type);
     
-    this.ctx.save();
-    this.ctx.translate(x, y);
-    
-    // Shape shadow
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-    this.ctx.save();
-    this.ctx.translate(3, 3);
-    this.drawPolygon(0, 0, shape.size + 2, sides);
-    this.ctx.fill();
     this.ctx.restore();
+  }
+  
+  /**
+   * Render a shape (triangle, square, pentagon, hexagon)
+   */
+  renderShape(shape: Shape): void {
+    const { position, size, type, rotation, health, maxHealth, color } = shape;
     
-    // Shape with gradient
-    const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, shape.size);
+    this.ctx.save();
+    this.ctx.translate(position.x, position.y);
+    this.ctx.rotate(rotation);
+    
+    // Create gradient for shape
+    const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, size);
     gradient.addColorStop(0, this.lightenColor(color, 20));
     gradient.addColorStop(1, color);
     
@@ -167,105 +242,168 @@ export class Renderer {
     this.ctx.strokeStyle = this.darkenColor(color, 20);
     this.ctx.lineWidth = 2;
     
-    this.drawPolygon(0, 0, shape.size, sides);
+    // Draw shape based on type
+    this.ctx.beginPath();
+    switch(type) {
+      case 'triangle':
+        this.drawPolygon(3, size);
+        break;
+      case 'square':
+        this.ctx.rect(-size, -size, size * 2, size * 2);
+        break;
+      case 'pentagon':
+        this.drawPolygon(5, size);
+        break;
+      case 'hexagon':
+        this.drawPolygon(6, size);
+        break;
+    }
+    
     this.ctx.fill();
     this.ctx.stroke();
     
-    // Inner highlight
-    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-    this.drawPolygon(0, 0, shape.size * 0.7, sides);
-    this.ctx.fill();
+    // Draw health bar if damaged
+    if (health < maxHealth) {
+      this.ctx.rotate(-rotation); // Unrotate for health bar
+      this.renderHealthBar(health, maxHealth, -size - 15);
+    }
     
     this.ctx.restore();
-    
-    // Health bar for damaged shapes
-    if (shape.health < shape.maxHealth) {
-      this.renderHealthBar(x, y - shape.size - 10, shape.health, shape.maxHealth, shape.size * 1.5, 4);
-    }
   }
-
-  private renderHealthBar(x: number, y: number, health: number, maxHealth: number, width: number, height: number): void {
-    const healthPercentage = health / maxHealth;
+  
+  /**
+   * ⭐ NEW FEATURE: Render auto-shoot visual effect
+   * Shows golden border glow when auto-shoot is active
+   */
+  renderAutoShootEffect(canvasWidth: number, canvasHeight: number): void {
+    this.ctx.save();
     
-    // Background
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-    this.ctx.fillRect(x - width/2, y, width, height);
+    // Create pulsing effect
+    const pulse = Math.sin(Date.now() / 100) * 0.3 + 0.7;
     
-    // Health gradient
-    const gradient = this.ctx.createLinearGradient(x - width/2, y, x + width/2, y);
-    if (healthPercentage > 0.6) {
-      gradient.addColorStop(0, '#4CAF50');
-      gradient.addColorStop(1, '#8BC34A');
-    } else if (healthPercentage > 0.3) {
-      gradient.addColorStop(0, '#FF9800');
-      gradient.addColorStop(1, '#FFB74D');
-    } else {
-      gradient.addColorStop(0, '#F44336');
-      gradient.addColorStop(1, '#EF5350');
-    }
+    // Draw golden border glow
+    this.ctx.strokeStyle = `rgba(255, 215, 0, ${pulse})`;
+    this.ctx.lineWidth = 8;
+    this.ctx.shadowBlur = 20;
+    this.ctx.shadowColor = 'rgba(255, 215, 0, 0.5)';
     
-    this.ctx.fillStyle = gradient;
-    this.ctx.fillRect(x - width/2, y, width * healthPercentage, height);
+    // Draw border
+    this.ctx.strokeRect(0, 0, canvasWidth, canvasHeight);
     
-    // Border
-    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-    this.ctx.lineWidth = 1;
-    this.ctx.strokeRect(x - width/2, y, width, height);
-  }
-
-  private getShapeSides(type: string): number {
-    switch(type) {
-      case 'triangle': return 3;
-      case 'square': return 4;
-      case 'pentagon': return 5;
-      case 'hexagon': return 6;
-      default: return 3;
-    }
-  }
-
-  private getShapeColor(type: string): string {
-    switch(type) {
-      case 'triangle': return '#FF6B6B';
-      case 'square': return '#FFE66D';
-      case 'pentagon': return '#4ECDC4';
-      case 'hexagon': return '#A8E6CF';
-      default: return '#888888';
-    }
-  }
-
-  private drawPolygon(x: number, y: number, radius: number, sides: number): void {
+    // Add corner accents
+    const cornerSize = 50;
+    this.ctx.lineWidth = 4;
+    this.ctx.strokeStyle = `rgba(255, 230, 0, ${pulse})`;
+    
+    // Top-left corner
     this.ctx.beginPath();
+    this.ctx.moveTo(0, cornerSize);
+    this.ctx.lineTo(0, 0);
+    this.ctx.lineTo(cornerSize, 0);
+    this.ctx.stroke();
+    
+    // Top-right corner
+    this.ctx.beginPath();
+    this.ctx.moveTo(canvasWidth - cornerSize, 0);
+    this.ctx.lineTo(canvasWidth, 0);
+    this.ctx.lineTo(canvasWidth, cornerSize);
+    this.ctx.stroke();
+    
+    // Bottom-left corner
+    this.ctx.beginPath();
+    this.ctx.moveTo(0, canvasHeight - cornerSize);
+    this.ctx.lineTo(0, canvasHeight);
+    this.ctx.lineTo(cornerSize, canvasHeight);
+    this.ctx.stroke();
+    
+    // Bottom-right corner
+    this.ctx.beginPath();
+    this.ctx.moveTo(canvasWidth - cornerSize, canvasHeight);
+    this.ctx.lineTo(canvasWidth, canvasHeight);
+    this.ctx.lineTo(canvasWidth, canvasHeight - cornerSize);
+    this.ctx.stroke();
+    
+    this.ctx.restore();
+  }
+  
+  /**
+   * Helper: Draw a regular polygon
+   */
+  private drawPolygon(sides: number, size: number): void {
+    const angle = (Math.PI * 2) / sides;
     
     for (let i = 0; i < sides; i++) {
-      const angle = (i * 2 * Math.PI) / sides - Math.PI / 2;
-      const px = x + Math.cos(angle) * radius;
-      const py = y + Math.sin(angle) * radius;
+      const x = Math.cos(angle * i - Math.PI / 2) * size;
+      const y = Math.sin(angle * i - Math.PI / 2) * size;
       
       if (i === 0) {
-        this.ctx.moveTo(px, py);
+        this.ctx.moveTo(x, y);
       } else {
-        this.ctx.lineTo(px, py);
+        this.ctx.lineTo(x, y);
       }
     }
     
     this.ctx.closePath();
   }
-
-  private darkenColor(color: string, amount: number): string {
-    const hex = color.replace('#', '');
-    const r = Math.max(0, parseInt(hex.substr(0, 2), 16) - amount);
-    const g = Math.max(0, parseInt(hex.substr(2, 2), 16) - amount);
-    const b = Math.max(0, parseInt(hex.substr(4, 2), 16) - amount);
+  
+  /**
+   * Helper: Render a health bar
+   */
+  private renderHealthBar(health: number, maxHealth: number, yOffset: number): void {
+    const barWidth = 40;
+    const barHeight = 4;
+    const healthPercent = health / maxHealth;
     
-    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+    // Background
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    this.ctx.fillRect(-barWidth/2, yOffset, barWidth, barHeight);
+    
+    // Health fill with color based on percentage
+    if (healthPercent > 0.6) {
+      this.ctx.fillStyle = '#4CAF50';
+    } else if (healthPercent > 0.3) {
+      this.ctx.fillStyle = '#FF9800';
+    } else {
+      this.ctx.fillStyle = '#F44336';
+    }
+    
+    this.ctx.fillRect(-barWidth/2, yOffset, barWidth * healthPercent, barHeight);
+    
+    // Border
+    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    this.ctx.lineWidth = 1;
+    this.ctx.strokeRect(-barWidth/2, yOffset, barWidth, barHeight);
   }
-
-  private lightenColor(color: string, amount: number): string {
-    const hex = color.replace('#', '');
-    const r = Math.min(255, parseInt(hex.substr(0, 2), 16) + amount);
-    const g = Math.min(255, parseInt(hex.substr(2, 2), 16) + amount);
-    const b = Math.min(255, parseInt(hex.substr(4, 2), 16) + amount);
+  
+  /**
+   * Helper: Lighten a color
+   */
+  private lightenColor(color: string, percent: number): string {
+    const num = parseInt(color.replace('#', ''), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = (num >> 16) + amt;
+    const G = (num >> 8 & 0x00FF) + amt;
+    const B = (num & 0x0000FF) + amt;
     
-    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+    return '#' + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+      (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+      (B < 255 ? B < 1 ? 0 : B : 255))
+      .toString(16).slice(1);
+  }
+  
+  /**
+   * Helper: Darken a color
+   */
+  private darkenColor(color: string, percent: number): string {
+    const num = parseInt(color.replace('#', ''), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = (num >> 16) - amt;
+    const G = (num >> 8 & 0x00FF) - amt;
+    const B = (num & 0x0000FF) - amt;
+    
+    return '#' + (0x1000000 + (R > 0 ? R : 0) * 0x10000 +
+      (G > 0 ? G : 0) * 0x100 +
+      (B > 0 ? B : 0))
+      .toString(16).slice(1);
   }
 }

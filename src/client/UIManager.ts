@@ -1,226 +1,187 @@
 /**
- * UI Manager - Handles all UI elements and interactions
- * Manages HUD, leaderboard, minimap, upgrade menu, and controls
+ * UI Manager for HUD elements
  */
 
 export class UIManager {
-  private upgradeMenuVisible = false;
-  private upgradePoints = 0;
-
+  private statsContainer!: HTMLElement;
+  private leaderboard!: HTMLElement;
+  private fpsCounter!: HTMLElement;
+  private notificationContainer!: HTMLElement;
+  
   initialize(): void {
-    this.createHUD();
-    this.createLeaderboard();
-    this.createMinimap();
-    this.createUpgradeMenu();
-    this.createControls();
-    this.setupEventListeners();
+    this.createUIElements();
   }
-
-  private createHUD(): void {
-    const hud = document.createElement('div');
-    hud.className = 'stats-container';
-    hud.innerHTML = `
+  
+  private createUIElements(): void {
+    // Stats container
+    this.statsContainer = document.createElement('div');
+    this.statsContainer.className = 'stats-container';
+    this.statsContainer.innerHTML = `
       <div class="score-display">Score: 0</div>
-      <div class="level-display">Level: 1</div>
-      
+      <div class="level-display">Level 1</div>
       <div class="stat-bars">
         <div class="stat-bar health-bar">
-          <span class="stat-bar-label">Health</span>
-          <div class="stat-fill" style="width: 100%"></div>
-          <div class="stat-text">100/100</div>
+          <div class="stat-bar-label">HEALTH</div>
+          <div class="stat-fill" style="width: 100%">
+            <span class="stat-text">100/100</span>
+          </div>
         </div>
-        
         <div class="stat-bar xp-bar">
-          <span class="stat-bar-label">Experience</span>
-          <div class="stat-fill" style="width: 0%"></div>
-          <div class="stat-text">0/100</div>
+          <div class="stat-bar-label">EXPERIENCE</div>
+          <div class="stat-fill" style="width: 0%">
+            <span class="stat-text">0/100</span>
+          </div>
         </div>
       </div>
     `;
-    document.getElementById('game-ui')?.appendChild(hud);
-  }
-
-  private createLeaderboard(): void {
-    const leaderboard = document.createElement('div');
-    leaderboard.id = 'leaderboard';
-    leaderboard.innerHTML = '<h3>Leaderboard</h3>';
-    document.getElementById('game-ui')?.appendChild(leaderboard);
-  }
-
-  private createMinimap(): void {
-    const minimap = document.createElement('div');
-    minimap.id = 'minimap';
-    const canvas = document.createElement('canvas');
-    canvas.width = 176;
-    canvas.height = 176;
-    minimap.appendChild(canvas);
-    document.getElementById('game-ui')?.appendChild(minimap);
-  }
-
-  private createControls(): void {
-    const controls = document.createElement('div');
-    controls.id = 'controls';
-    controls.innerHTML = `
-      <h4>Controls</h4>
-      <div><strong>WASD:</strong> Move</div>
-      <div><strong>Mouse:</strong> Aim & Shoot</div>
-      <div><strong>U:</strong> Upgrade Menu</div>
-    `;
-    document.getElementById('game-ui')?.appendChild(controls);
-  }
-
-  private createUpgradeMenu(): void {
-    const upgradeMenu = document.createElement('div');
-    upgradeMenu.id = 'upgrade-menu';
-    upgradeMenu.className = 'hidden';
-    upgradeMenu.innerHTML = `
-      <h3>Choose Your Upgrade</h3>
-      <div id="upgrade-options">
-        <div class="upgrade-option" data-stat="health">
-          <h4>Health Regen</h4>
-          <p>Increase health regeneration rate</p>
-        </div>
-        <div class="upgrade-option" data-stat="damage">
-          <h4>Bullet Damage</h4>
-          <p>Deal more damage per shot</p>
-        </div>
-        <div class="upgrade-option" data-stat="speed">
-          <h4>Movement Speed</h4>
-          <p>Move faster across the battlefield</p>
-        </div>
-        <div class="upgrade-option" data-stat="reload">
-          <h4>Reload Speed</h4>
-          <p>Fire bullets more frequently</p>
-        </div>
-        <div class="upgrade-option" data-class="twin">
-          <h4>Twin Cannon</h4>
-          <p>Upgrade to dual barrels</p>
-        </div>
-        <div class="upgrade-option" data-class="sniper">
-          <h4>Sniper</h4>
-          <p>Long range, high damage</p>
-        </div>
-      </div>
-    `;
-    document.getElementById('game-ui')?.appendChild(upgradeMenu);
-  }
-
-  private setupEventListeners(): void {
-    // Toggle upgrade menu with 'U' key
-    window.addEventListener('keydown', (e) => {
-      if (e.code === 'KeyU') {
-        this.toggleUpgradeMenu();
-      }
-      if (e.code === 'Escape') {
-        this.hideUpgradeMenu();
-      }
-    });
-
-    // Upgrade buttons
-    document.addEventListener('click', (e) => {
-      const target = e.target as HTMLElement;
-      if (target.closest('.upgrade-option')) {
-        const option = target.closest('.upgrade-option') as HTMLElement;
-        const stat = option.getAttribute('data-stat');
-        const tankClass = option.getAttribute('data-class');
-        
-        if (stat) {
-          console.log(`Upgrading stat: ${stat}`);
-          this.showNotification(`${stat.toUpperCase()} upgraded!`);
-        }
-        
-        if (tankClass) {
-          console.log(`Changing to tank class: ${tankClass}`);
-          this.showNotification(`Evolved to ${tankClass.toUpperCase()}!`);
-        }
-        
-        this.hideUpgradeMenu();
-      }
-    });
-  }
-
-  private toggleUpgradeMenu(): void {
-    const menu = document.getElementById('upgrade-menu');
-    if (menu?.classList.contains('hidden')) {
-      this.showUpgradeMenu();
-    } else {
-      this.hideUpgradeMenu();
-    }
-  }
-
-  private showUpgradeMenu(): void {
-    const menu = document.getElementById('upgrade-menu');
-    if (menu) {
-      menu.classList.remove('hidden');
-      this.upgradeMenuVisible = true;
-    }
-  }
-
-  private hideUpgradeMenu(): void {
-    const menu = document.getElementById('upgrade-menu');
-    if (menu) {
-      menu.classList.add('hidden');
-      this.upgradeMenuVisible = false;
-    }
-  }
-
-  private showNotification(message: string): void {
-    const notification = document.createElement('div');
-    notification.className = 'notification';
-    notification.textContent = message;
-    document.body.appendChild(notification);
     
-    setTimeout(() => {
-      notification.remove();
-    }, 2000);
+    // Leaderboard
+    this.leaderboard = document.createElement('div');
+    this.leaderboard.id = 'leaderboard';
+    this.leaderboard.innerHTML = `
+      <h3>🏆 Leaderboard</h3>
+      <div class="leaderboard-entries"></div>
+    `;
+    
+    // FPS counter
+    this.fpsCounter = document.createElement('div');
+    this.fpsCounter.id = 'fps-counter';
+    this.fpsCounter.textContent = 'FPS: 0';
+    
+    // Notification container
+    this.notificationContainer = document.createElement('div');
+    this.notificationContainer.id = 'notification-container';
+    
+    // Append to game UI
+    const gameUI = document.getElementById('game-ui');
+    if (gameUI) {
+      gameUI.appendChild(this.statsContainer);
+      gameUI.appendChild(this.leaderboard);
+      gameUI.appendChild(this.fpsCounter);
+      gameUI.appendChild(this.notificationContainer);
+    }
   }
-
-  updateStats(stats: any): void {
+  
+  updateStats(stats: {
+    score: number;
+    level: number;
+    health: number;
+    maxHealth: number;
+    xp: number;
+    xpToNext: number;
+  }): void {
     // Update score
-    const scoreDisplay = document.querySelector('.score-display');
+    const scoreDisplay = this.statsContainer.querySelector('.score-display');
     if (scoreDisplay) {
-      scoreDisplay.textContent = `Score: ${stats.score || 0}`;
+      scoreDisplay.textContent = `Score: ${stats.score.toLocaleString()}`;
     }
     
     // Update level
-    const levelDisplay = document.querySelector('.level-display');
+    const levelDisplay = this.statsContainer.querySelector('.level-display');
     if (levelDisplay) {
-      levelDisplay.textContent = `Level: ${stats.level || 1}`;
+      levelDisplay.textContent = `Level ${stats.level}`;
     }
     
     // Update health bar
-    const healthFill = document.querySelector('.health-bar .stat-fill') as HTMLElement;
-    const healthText = document.querySelector('.health-bar .stat-text');
-    if (healthFill && healthText) {
+    const healthBar = this.statsContainer.querySelector('.health-bar .stat-fill') as HTMLElement;
+    const healthText = this.statsContainer.querySelector('.health-bar .stat-text');
+    if (healthBar && healthText) {
       const healthPercent = (stats.health / stats.maxHealth) * 100;
-      healthFill.style.width = `${healthPercent}%`;
+      healthBar.style.width = `${healthPercent}%`;
       healthText.textContent = `${Math.round(stats.health)}/${stats.maxHealth}`;
+      
+      // Change color based on health
+      if (healthPercent > 60) {
+        healthBar.style.background = 'linear-gradient(90deg, #4CAF50, #8BC34A)';
+      } else if (healthPercent > 30) {
+        healthBar.style.background = 'linear-gradient(90deg, #FF9800, #FFB74D)';
+      } else {
+        healthBar.style.background = 'linear-gradient(90deg, #F44336, #EF5350)';
+      }
     }
     
     // Update XP bar
-    const xpFill = document.querySelector('.xp-bar .stat-fill') as HTMLElement;
-    const xpText = document.querySelector('.xp-bar .stat-text');
-    if (xpFill && xpText) {
+    const xpBar = this.statsContainer.querySelector('.xp-bar .stat-fill') as HTMLElement;
+    const xpText = this.statsContainer.querySelector('.xp-bar .stat-text');
+    if (xpBar && xpText) {
       const xpPercent = (stats.xp / stats.xpToNext) * 100;
-      xpFill.style.width = `${xpPercent}%`;
+      xpBar.style.width = `${xpPercent}%`;
       xpText.textContent = `${stats.xp}/${stats.xpToNext}`;
     }
   }
-
-  updateLeaderboard(players: any[]): void {
-    const leaderboard = document.getElementById('leaderboard');
-    if (!leaderboard) return;
+  
+  updateLeaderboard(entries: Array<{
+    name: string;
+    score: number;
+    isCurrentPlayer: boolean;
+  }>): void {
+    const container = this.leaderboard.querySelector('.leaderboard-entries');
+    if (!container) return;
     
-    const entries = players
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 5)
-      .map((player, index) => `
-        <div class="leaderboard-entry ${player.isCurrentPlayer ? 'current-player' : ''}">
-          <span>${index + 1}. ${player.name}</span>
-          <span>${player.score}</span>
-        </div>
-      `).join('');
+    container.innerHTML = entries.slice(0, 10).map((entry, index) => `
+      <div class="leaderboard-entry ${entry.isCurrentPlayer ? 'current-player' : ''}">
+        <span class="leaderboard-rank">#${index + 1}</span>
+        <span class="leaderboard-name">${this.escapeHtml(entry.name)}</span>
+        <span class="leaderboard-score">${entry.score.toLocaleString()}</span>
+      </div>
+    `).join('');
+  }
+  
+  /**
+   * Update the FPS counter display
+   * @param fps - Current frames per second
+   */
+  updateFPS(fps: number): void {
+    this.fpsCounter.textContent = `FPS: ${fps}`;
     
-    leaderboard.innerHTML = `<h3>Leaderboard</h3>${entries}`;
+    // Color code FPS based on performance
+    if (fps >= 50) {
+      this.fpsCounter.style.color = '#00FF00'; // Green for good performance
+    } else if (fps >= 30) {
+      this.fpsCounter.style.color = '#FFD700'; // Yellow for acceptable performance
+    } else {
+      this.fpsCounter.style.color = '#FF6B6B'; // Red for poor performance
+    }
+  }
+  
+  /**
+   * Show a notification message to the player
+   * @param message - The message to display
+   * @param duration - How long to show the notification (default: 3000ms)
+   */
+  showNotification(message: string, duration: number = 3000): void {
+    const notification = document.createElement('div');
+    notification.className = 'notification';
+    notification.textContent = message;
+    
+    // Add styles for the notification
+    notification.style.cssText = `
+      background: linear-gradient(135deg, rgba(0, 178, 225, 0.9), rgba(0, 100, 150, 0.9));
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      font-size: 14px;
+      font-weight: bold;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      animation: slideIn 0.3s ease;
+      transition: opacity 0.5s ease;
+    `;
+    
+    this.notificationContainer.appendChild(notification);
+    
+    // Fade out and remove after duration
+    setTimeout(() => {
+      notification.style.opacity = '0';
+      setTimeout(() => {
+        notification.remove();
+      }, 500);
+    }, duration);
+  }
+  
+  private escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
 }
