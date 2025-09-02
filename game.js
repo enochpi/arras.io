@@ -6,8 +6,8 @@
 // ==================== GAME CONFIGURATION ====================
 const CONFIG = {
   // World settings
-  WORLD_WIDTH: 3000,
-  WORLD_HEIGHT: 3000,
+  WORLD_WIDTH: 10000,
+  WORLD_HEIGHT: 10000,
   GRID_SIZE: 50,
   
   // Player settings
@@ -20,12 +20,12 @@ const CONFIG = {
   BULLET_SIZE: 10,
   BULLET_SPEED: 8,
   BULLET_DAMAGE: 20,
-  FIRE_RATE: 250, // milliseconds
+  FIRE_RATE: 200, // milliseconds
   BULLET_LIFETIME: 2000, // milliseconds
   
   // Shape settings
-  MAX_SHAPES: 50,
-  SHAPE_SPAWN_RATE: 2000, // milliseconds
+  MAX_SHAPES: 5000,
+  SHAPE_SPAWN_RATE: 100, // milliseconds
   SHAPES: {
     triangle: { sides: 3, size: 25, health: 30, xp: 10, color: '#FF6B6B', speed: 1 },
     square: { sides: 4, size: 30, health: 50, xp: 20, color: '#FFE66D', speed: 0.8 },

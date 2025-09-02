@@ -1,14 +1,3 @@
-/**
- * Enhanced Game Client
- * 
- * ⭐ NEW FEATURES:
- * - EXPANDED WORLD: Now 6000x6000 (previously 3000x3000) - 4X larger play area!
- * - AUTO-SHOOT: Hold 'E' key for automatic firing mode
- * - Optimized rendering with viewport culling for smooth performance
- * - Enhanced visual effects and modern UI
- */
-
-import { io, Socket } from 'socket.io-client';
 import { Renderer } from './Renderer';
 import { UIManager } from './UIManager';
 import { InputHandler } from './InputHandler';
@@ -37,24 +26,23 @@ export interface Projectile {
   velocity: { x: number; y: number };
   damage: number;
   ownerId: string;
+  lifetime: number;
 }
 
-// Shape data interface - FIXED: Updated to match Renderer's type definition
+// Shape data interface
 export interface Shape {
   id: string;
-  type: 'triangle' | 'square' | 'pentagon' | 'hexagon';  // ✅ FIXED: Made type specific
+  type: 'triangle' | 'square' | 'pentagon' | 'hexagon';
   position: { x: number; y: number };
   size: number;
   health: number;
   maxHealth: number;
   rotation: number;
   color: string;
+  xp: number;
 }
 
 export class GameClient {
-  // Network
-  private socket!: Socket;
-  
   // Canvas and rendering
   private canvas!: HTMLCanvasElement;
   private ctx!: CanvasRenderingContext2D;
@@ -67,55 +55,63 @@ export class GameClient {
   private minimapRenderer!: MinimapRenderer;
   
   // Game state
-  private currentPlayer: Player | null = null;
-  private players: Map<string, Player> = new Map();
+  private currentPlayer: Player;
   private projectiles: Map<string, Projectile> = new Map();
   private shapes: Map<string, Shape> = new Map();
   
-  // ⭐ EXPANDED WORLD BOUNDS - Now 6000x6000!
-  private worldBounds = { width: 6000, height: 6000 };
+  // World bounds - 10000x10000
+  private worldBounds = { width: 10000, height: 10000 };
   
   // Performance tracking
   private lastUpdateTime = Date.now();
   private frameCount = 0;
   private fps = 0;
   
+  // Shooting control
+  private lastShotTime = 0;
+  private fireRate = 250; // milliseconds between shots
+  
   /**
-   * Initialize the game client and all subsystems
+   * Initialize the single-player game
    */
   initialize(): void {
-    console.log('🚀 Initializing Enhanced Arras.io Client...');
-    console.log('⭐ NEW: Expanded World Size: 6000x6000');
-    console.log('⭐ NEW: Auto-Shoot Feature: Hold E key');
+    console.log('🚀 Initializing Single-Player Arras.io...');
+    console.log('🗺️ World Size: 10000x10000');
+    console.log('🎯 Auto-Shoot: Hold E key');
     
     this.setupCanvas();
-    this.setupSocketConnection();
     this.setupGameSystems();
+    this.initializePlayer();
+    this.initializeShapes();
     this.startGameLoop();
   }
   
   /**
-   * Setup the game canvas with optimized settings
+   * Setup the game canvas
    */
   private setupCanvas(): void {
     this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
     
+    if (!this.canvas) {
+      console.error('Canvas element not found!');
+      return;
+    }
+    
     // Get 2D context with performance optimizations
     this.ctx = this.canvas.getContext('2d', {
-      alpha: false,           // No transparency for better performance
-      desynchronized: true    // Reduce input lag
+      alpha: false,
+      desynchronized: true
     })!;
     
     // Set initial canvas size
     this.canvas.width = window.innerWidth;
     this.canvas.height = window.innerHeight;
     
-    // Handle window resize events
+    // Handle window resize
     window.addEventListener('resize', () => {
       this.canvas.width = window.innerWidth;
       this.canvas.height = window.innerHeight;
       
-      // Update camera viewport
       if (this.camera) {
         this.camera.updateViewport(this.canvas.width, this.canvas.height);
       }
@@ -123,156 +119,189 @@ export class GameClient {
   }
   
   /**
-   * Initialize all game systems (renderer, UI, input, etc.)
+   * Initialize all game systems
    */
   private setupGameSystems(): void {
-    // Create renderer for drawing game objects
     this.renderer = new Renderer(this.ctx);
     
-    // Initialize UI manager for HUD elements
     this.uiManager = new UIManager();
     this.uiManager.initialize();
     
-    // Setup input handler with auto-shoot support
     this.inputHandler = new InputHandler(this.canvas);
     
-    // Create camera for viewport management
     this.camera = new Camera(this.canvas.width, this.canvas.height);
     
-    // Initialize minimap renderer
     this.minimapRenderer = new MinimapRenderer();
     this.minimapRenderer.initialize();
   }
   
   /**
-   * Setup WebSocket connection to game server
+   * Initialize the player
    */
-  private setupSocketConnection(): void {
-    // Connect to game server
-    this.socket = io('http://localhost:3001');
+  private initializePlayer(): void {
+    this.currentPlayer = {
+      id: 'player-' + Math.random().toString(36).substr(2, 9),
+      name: 'Player',
+      position: { x: 5000, y: 5000 }, // Center of map
+      rotation: 0,
+      health: 100,
+      maxHealth: 100,
+      level: 1,
+      xp: 0,
+      xpToNext: 100,
+      score: 0,
+      velocity: { x: 0, y: 0 }
+    };
     
-    // Handle successful connection
-    this.socket.on('connect', () => {
-      console.log('🔌 Connected to server');
-      
-      // Prompt for player name
-      const playerName = prompt('Enter your name:') || `Player${Math.floor(Math.random() * 1000)}`;
-      this.socket.emit('join-game', { name: playerName });
-    });
-    
-    // Handle player join confirmation
-    this.socket.on('player-joined', (data) => {
-      console.log('✅ Joined game successfully');
-      console.log(`📍 Spawned in ${data.worldBounds.width}x${data.worldBounds.height} world`);
-      
-      // Store world bounds and player data
-      this.worldBounds = data.worldBounds;
-      this.currentPlayer = data.playerData;
-      this.players.set(data.playerId, data.playerData);
-      
-      // Initialize camera position on player
-      if (this.currentPlayer) {
-        this.camera.setTarget(
-          this.currentPlayer.position.x,
-          this.currentPlayer.position.y
-        );
-      }
-    });
-    
-    // Handle game state updates from server
-    this.socket.on('game-state', (state) => {
-      this.updateGameState(state);
-    });
-    
-    // Handle connection rejection
-    this.socket.on('connection-rejected', (data) => {
-      alert(`Connection rejected: ${data.message}`);
-      this.socket.disconnect();
-    });
-    
-    // Handle disconnection
-    this.socket.on('disconnect', () => {
-      console.log('❌ Disconnected from server');
-      this.uiManager.showNotification('Disconnected from server');
-    });
+    // Set camera on player
+    this.camera.setTarget(
+      this.currentPlayer.position.x,
+      this.currentPlayer.position.y
+    );
   }
   
   /**
-   * Update local game state with server data
+   * Initialize shapes throughout the world
    */
-  private updateGameState(state: any): void {
-    // Update players map
-    this.players.clear();
-    if (state.players) {
-      Object.entries(state.players).forEach(([id, player]: [string, any]) => {
-        this.players.set(id, player);
-        
-        // Update current player reference
-        if (id === this.socket.id) {
-          this.currentPlayer = player;
-        }
-      });
-    }
+  private initializeShapes(): void {
+    const shapeCount = 200; // More shapes for larger world
     
-    // Update projectiles map
-    this.projectiles.clear();
-    if (state.projectiles) {
-      Object.entries(state.projectiles).forEach(([id, projectile]: [string, any]) => {
-        this.projectiles.set(id, projectile);
-      });
+    for (let i = 0; i < shapeCount; i++) {
+      this.spawnRandomShape();
     }
+  }
+  
+  /**
+   * Spawn a random shape
+   */
+  private spawnRandomShape(): void {
+    const types: Array<'triangle' | 'square' | 'pentagon' | 'hexagon'> = 
+      ['triangle', 'square', 'pentagon', 'hexagon'];
+    const type = types[Math.floor(Math.random() * types.length)];
     
-    // Update shapes map with type validation
-    this.shapes.clear();
-    if (state.shapes) {
-      Object.entries(state.shapes).forEach(([id, shapeData]: [string, any]) => {
-        // ✅ FIXED: Validate shape type and provide fallback
-        const validShapeTypes: Array<'triangle' | 'square' | 'pentagon' | 'hexagon'> = 
-          ['triangle', 'square', 'pentagon', 'hexagon'];
-        
-        const shape: Shape = {
-          ...shapeData,
-          // Ensure type is valid, fallback to 'triangle' if invalid
-          type: validShapeTypes.includes(shapeData.type) ? shapeData.type : 'triangle'
-        };
-        
-        this.shapes.set(id, shape);
-      });
-    }
+    // Shape properties based on type
+    const shapeProps = {
+      triangle: { size: 25, health: 30, xp: 10, color: '#FF6B6B' },
+      square: { size: 30, health: 50, xp: 20, color: '#FFE66D' },
+      pentagon: { size: 35, health: 80, xp: 35, color: '#4ECDC4' },
+      hexagon: { size: 40, health: 120, xp: 50, color: '#A8E6CF' }
+    };
     
-    // Update UI elements if current player exists
-    if (this.currentPlayer) {
-      // Update stats display
-      this.uiManager.updateStats({
-        score: this.currentPlayer.score,
-        level: this.currentPlayer.level,
-        health: this.currentPlayer.health,
-        maxHealth: this.currentPlayer.maxHealth,
-        xp: this.currentPlayer.xp,
-        xpToNext: this.currentPlayer.xpToNext
-      });
+    const props = shapeProps[type];
+    
+    // Random position (avoid spawning too close to player initially)
+    let x, y;
+    do {
+      x = Math.random() * this.worldBounds.width;
+      y = Math.random() * this.worldBounds.height;
+    } while (
+      Math.abs(x - this.currentPlayer.position.x) < 300 &&
+      Math.abs(y - this.currentPlayer.position.y) < 300
+    );
+    
+    const shape: Shape = {
+      id: `shape-${Date.now()}-${Math.random()}`,
+      type: type,
+      position: { x, y },
+      size: props.size,
+      health: props.health,
+      maxHealth: props.health,
+      rotation: Math.random() * Math.PI * 2,
+      color: props.color,
+      xp: props.xp
+    };
+    
+    this.shapes.set(shape.id, shape);
+  }
+  
+  /**
+   * Main game loop
+   */
+  private startGameLoop(): void {
+    let lastTime = performance.now();
+    
+    const gameLoop = (currentTime: number) => {
+      const deltaTime = (currentTime - lastTime) / 1000;
+      lastTime = currentTime;
       
-      // Smoothly update camera position
-      this.camera.update(
-        this.currentPlayer.position.x,
-        this.currentPlayer.position.y,
-        0.1  // Smoothing factor
-      );
+      this.update(deltaTime);
+      this.render(deltaTime);
+      this.updateFPS();
+      
+      requestAnimationFrame(gameLoop);
+    };
+    
+    requestAnimationFrame(gameLoop);
+  }
+  
+  /**
+   * Update game state
+   */
+  private update(deltaTime: number): void {
+    // Get input
+    const input = this.inputHandler.getInput();
+    
+    // Update player movement
+    const speed = 300 * deltaTime; // pixels per second
+    if (input.keys.w) this.currentPlayer.position.y -= speed;
+    if (input.keys.s) this.currentPlayer.position.y += speed;
+    if (input.keys.a) this.currentPlayer.position.x -= speed;
+    if (input.keys.d) this.currentPlayer.position.x += speed;
+    
+    // Keep player in bounds
+    this.currentPlayer.position.x = Math.max(25, Math.min(this.worldBounds.width - 25, this.currentPlayer.position.x));
+    this.currentPlayer.position.y = Math.max(25, Math.min(this.worldBounds.height - 25, this.currentPlayer.position.y));
+    
+    // Update player rotation
+    const worldMousePos = this.camera.screenToWorld(input.mousePos.x, input.mousePos.y);
+    const dx = worldMousePos.x - this.currentPlayer.position.x;
+    const dy = worldMousePos.y - this.currentPlayer.position.y;
+    this.currentPlayer.rotation = Math.atan2(dy, dx);
+    
+    // Handle shooting
+    const now = Date.now();
+    if ((input.shooting || input.autoShooting) && now - this.lastShotTime > this.fireRate) {
+      this.shoot();
+      this.lastShotTime = now;
     }
     
-    // Update leaderboard
-    if (state.leaderboard) {
-      const leaderboardData = state.leaderboard.map((entry: any) => ({
-        name: entry.name,
-        score: entry.score,
-        isCurrentPlayer: entry.id === this.socket.id
-      }));
-      this.uiManager.updateLeaderboard(leaderboardData);
-    }
+    // Update projectiles
+    this.projectiles.forEach((projectile, id) => {
+      projectile.position.x += projectile.velocity.x;
+      projectile.position.y += projectile.velocity.y;
+      projectile.lifetime -= deltaTime;
+      
+      // Remove if expired or out of bounds
+      if (projectile.lifetime <= 0 ||
+          projectile.position.x < 0 || projectile.position.x > this.worldBounds.width ||
+          projectile.position.y < 0 || projectile.position.y > this.worldBounds.height) {
+        this.projectiles.delete(id);
+      }
+    });
     
-    // Update minimap with current game state
+    // Update shapes (simple rotation)
+    this.shapes.forEach(shape => {
+      shape.rotation += 0.01;
+    });
+    
+    // Check collisions
+    this.checkCollisions();
+    
+    // Update camera
+    this.camera.update(
+      this.currentPlayer.position.x,
+      this.currentPlayer.position.y,
+      0.1
+    );
+    
+    // Update UI
+    this.updateUI();
+    
+    // Update minimap
+    const players = new Map();
+    players.set(this.currentPlayer.id, this.currentPlayer);
     this.minimapRenderer.update(
-      this.players,
+      players,
       this.shapes,
       this.currentPlayer,
       this.worldBounds
@@ -280,155 +309,176 @@ export class GameClient {
   }
   
   /**
-   * Send player input to server
-   * Includes movement, aiming, and shooting (including auto-shoot)
+   * Shoot a projectile
    */
-  private sendInput(): void {
-    // Don't send input if not connected
-    if (!this.socket.connected) return;
-    
-    // Get current input state
-    const input = this.inputHandler.getInput();
-    
-    // Calculate world mouse position (account for camera offset)
-    const worldMousePos = {
-      x: input.mousePos.x + this.camera.x,
-      y: input.mousePos.y + this.camera.y
+  private shoot(): void {
+    const projectile: Projectile = {
+      id: `proj-${Date.now()}-${Math.random()}`,
+      position: { 
+        x: this.currentPlayer.position.x + Math.cos(this.currentPlayer.rotation) * 30,
+        y: this.currentPlayer.position.y + Math.sin(this.currentPlayer.rotation) * 30
+      },
+      velocity: {
+        x: Math.cos(this.currentPlayer.rotation) * 600, // pixels per second
+        y: Math.sin(this.currentPlayer.rotation) * 600
+      },
+      damage: 20,
+      ownerId: this.currentPlayer.id,
+      lifetime: 2 // seconds
     };
     
-    // Send input packet to server
-    this.socket.emit('player-input', {
-      keys: input.keys,
-      mousePos: worldMousePos,
-      shooting: input.shooting,
-      autoShooting: input.autoShooting  // ⭐ NEW: Auto-shoot state
+    this.projectiles.set(projectile.id, projectile);
+  }
+  
+  /**
+   * Check collisions
+   */
+  private checkCollisions(): void {
+    // Check projectile-shape collisions
+    this.projectiles.forEach((projectile, projId) => {
+      this.shapes.forEach((shape, shapeId) => {
+        const dx = projectile.position.x - shape.position.x;
+        const dy = projectile.position.y - shape.position.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance < shape.size) {
+          // Hit!
+          shape.health -= projectile.damage;
+          this.projectiles.delete(projId);
+          
+          if (shape.health <= 0) {
+            // Shape destroyed
+            this.currentPlayer.score += shape.xp * 10;
+            this.currentPlayer.xp += shape.xp;
+            
+            // Check level up
+            if (this.currentPlayer.xp >= this.currentPlayer.xpToNext) {
+              this.currentPlayer.level++;
+              this.currentPlayer.xp = 0;
+              this.currentPlayer.xpToNext = this.currentPlayer.level * 100;
+              this.currentPlayer.maxHealth += 10;
+              this.currentPlayer.health = this.currentPlayer.maxHealth;
+              this.uiManager.showNotification(`Level ${this.currentPlayer.level}!`, 2000);
+            }
+            
+            this.shapes.delete(shapeId);
+            
+            // Spawn new shape to maintain count
+            setTimeout(() => this.spawnRandomShape(), 1000);
+          }
+        }
+      });
+    });
+    
+    // Check player-shape collisions
+    this.shapes.forEach(shape => {
+      const dx = this.currentPlayer.position.x - shape.position.x;
+      const dy = this.currentPlayer.position.y - shape.position.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      if (distance < shape.size + 25) {
+        // Damage player
+        this.currentPlayer.health -= 0.5;
+        
+        // Push player away
+        const pushX = (dx / distance) * 5;
+        const pushY = (dy / distance) * 5;
+        this.currentPlayer.position.x += pushX;
+        this.currentPlayer.position.y += pushY;
+        
+        if (this.currentPlayer.health <= 0) {
+          this.respawn();
+        }
+      }
     });
   }
   
   /**
-   * Main game loop - runs at 60 FPS
+   * Respawn player
    */
-  private startGameLoop(): void {
-    let lastTime = performance.now();
-    
-    const gameLoop = (currentTime: number) => {
-      // Calculate delta time for smooth animations
-      const deltaTime = (currentTime - lastTime) / 1000;
-      lastTime = currentTime;
-      
-      // Send input to server every frame
-      this.sendInput();
-      
-      // Update FPS counter
-      this.updateFPS();
-      
-      // Render the game world
-      this.render(deltaTime);
-      
-      // Continue loop
-      requestAnimationFrame(gameLoop);
-    };
-    
-    // Start the loop
-    requestAnimationFrame(gameLoop);
+  private respawn(): void {
+    this.currentPlayer.health = this.currentPlayer.maxHealth;
+    this.currentPlayer.position.x = 5000;
+    this.currentPlayer.position.y = 5000;
+    this.currentPlayer.score = Math.floor(this.currentPlayer.score * 0.8); // Lose 20% score
+    this.uiManager.showNotification('Respawned!', 2000);
   }
   
   /**
-   * Calculate and display FPS
+   * Update UI elements
+   */
+  private updateUI(): void {
+    this.uiManager.updateStats({
+      score: this.currentPlayer.score,
+      level: this.currentPlayer.level,
+      health: this.currentPlayer.health,
+      maxHealth: this.currentPlayer.maxHealth,
+      xp: this.currentPlayer.xp,
+      xpToNext: this.currentPlayer.xpToNext
+    });
+  }
+  
+  /**
+   * Calculate FPS
    */
   private updateFPS(): void {
     this.frameCount++;
     const now = Date.now();
     
-    // Update FPS every second
     if (now - this.lastUpdateTime >= 1000) {
       this.fps = this.frameCount;
       this.frameCount = 0;
       this.lastUpdateTime = now;
-      
-      // Update FPS display
       this.uiManager.updateFPS(this.fps);
     }
   }
   
   /**
-   * Render the entire game world
-   * Uses viewport culling for performance optimization
+   * Render the game
    */
   private render(deltaTime: number): void {
-    // Clear canvas with dark background
+    // Clear canvas
     this.ctx.fillStyle = '#1a1a2e';
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     
-    // Save context state and apply camera transform
+    // Apply camera transform
     this.ctx.save();
     this.ctx.translate(-this.camera.x, -this.camera.y);
     
-    // Render background grid
+    // Render world
     this.renderer.renderGrid(
       this.worldBounds.width,
       this.worldBounds.height,
       this.camera
     );
     
-    // Render world boundaries
     this.renderer.renderWorldBoundaries(
       this.worldBounds.width,
       this.worldBounds.height
     );
     
-    // Calculate visible area for culling (performance optimization)
-    const visibleArea = {
-      left: this.camera.x,
-      right: this.camera.x + this.canvas.width,
-      top: this.camera.y,
-      bottom: this.camera.y + this.canvas.height
-    };
-    
-    // Render shapes (only visible ones)
+    // Render shapes
     this.shapes.forEach(shape => {
-      if (this.isInViewport(shape.position, shape.size, visibleArea)) {
+      if (this.camera.isInView(shape.position.x, shape.position.y, shape.size)) {
         this.renderer.renderShape(shape);
       }
     });
     
-    // Render projectiles (only visible ones)
+    // Render projectiles
     this.projectiles.forEach(projectile => {
-      if (this.isInViewport(projectile.position, 10, visibleArea)) {
+      if (this.camera.isInView(projectile.position.x, projectile.position.y, 10)) {
         this.renderer.renderProjectile(projectile);
       }
     });
     
-    // Render all players (only visible ones)
-    this.players.forEach(player => {
-      if (this.isInViewport(player.position, 50, visibleArea)) {
-        const isCurrentPlayer = player.id === this.socket.id;
-        this.renderer.renderPlayer(player, isCurrentPlayer);
-      }
-    });
+    // Render player
+    this.renderer.renderPlayer(this.currentPlayer, true);
     
-    // Restore context state
     this.ctx.restore();
     
-    // Render UI overlay effects (not affected by camera)
-    // ⭐ Show auto-shoot effect when active
+    // Render auto-shoot effect
     if (this.inputHandler.isAutoShooting()) {
       this.renderer.renderAutoShootEffect(this.canvas.width, this.canvas.height);
     }
-  }
-  
-  /**
-   * Check if an object is within the visible viewport
-   * Used for culling optimization
-   */
-  private isInViewport(
-    position: { x: number; y: number },
-    size: number,
-    viewport: { left: number; right: number; top: number; bottom: number }
-  ): boolean {
-    return position.x + size >= viewport.left &&
-           position.x - size <= viewport.right &&
-           position.y + size >= viewport.top &&
-           position.y - size <= viewport.bottom;
   }
 }
