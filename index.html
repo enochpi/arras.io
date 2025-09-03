@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Arras.io Clone - Single Player Edition</title>
+  <title>Arras.io Clone - Enhanced Single Player Edition</title>
   
   <style>
     /* Reset and base styles */
@@ -154,6 +154,44 @@
       margin-right: 5px;
     }
 
+    /* Debug info */
+    #debug-info {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 10px 15px;
+      border-radius: 8px;
+      border: 2px solid rgba(0, 255, 0, 0.3);
+      font-family: monospace;
+      font-size: 12px;
+      color: #00FF00;
+      pointer-events: auto;
+    }
+
+    #debug-info h4 {
+      color: #00FF00;
+      margin-bottom: 8px;
+    }
+
+    #debug-info div {
+      margin: 3px 0;
+      color: rgba(0, 255, 0, 0.8);
+    }
+
+    /* FPS counter */
+    #fps {
+      position: absolute;
+      bottom: 220px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 5px 10px;
+      border-radius: 5px;
+      font-family: monospace;
+      font-size: 12px;
+      color: #00FF00;
+    }
+
     /* Upgrade menu */
     #upgrade-menu {
       position: absolute;
@@ -220,6 +258,40 @@
       text-transform: uppercase;
       letter-spacing: 1px;
     }
+
+    /* Rare shape notifications */
+    .rare-notification {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: linear-gradient(135deg, rgba(255, 215, 0, 0.9), rgba(255, 140, 0, 0.9));
+      border: 3px solid #FFD700;
+      border-radius: 10px;
+      padding: 15px 25px;
+      font-size: 20px;
+      font-weight: bold;
+      color: #000;
+      text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);
+      animation: rareNotify 2s ease-out forwards;
+      z-index: 200;
+      pointer-events: none;
+    }
+
+    @keyframes rareNotify {
+      0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.5);
+      }
+      20% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.1);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(1);
+      }
+    }
   </style>
 </head>
 <body>
@@ -247,6 +319,17 @@
           </div>
         </div>
       </div>
+
+      <!-- Debug info -->
+      <div id="debug-info">
+        <h4>🎯 Debug Controls</h4>
+        <div><strong>G:</strong> Spawn Green Radiant ⭐</div>
+        <div><strong>B:</strong> Spawn Blue Radiant ✨</div>
+        <div><strong>N:</strong> Spawn Shadow ☠️</div>
+        <div><strong>I:</strong> Show Statistics</div>
+        <div id="shape-count">Shapes: 0</div>
+        <div id="rare-count">Rare: 0</div>
+      </div>
       
       <!-- Controls info -->
       <div id="controls">
@@ -256,6 +339,9 @@
         <div><strong>Click/Hold:</strong> Shoot</div>
         <div><strong>U:</strong> Upgrades</div>
       </div>
+
+      <!-- FPS counter -->
+      <div id="fps">FPS: 0</div>
       
       <!-- Upgrade menu (hidden by default) -->
       <div id="upgrade-menu" class="hidden">
@@ -293,15 +379,44 @@
     </div>
   </div>
   
-  <!-- Load the configuration file first -->
+  <!-- Load scripts in correct order -->
+  <!-- 1. Configuration first -->
   <script src="config.js"></script>
-  <!-- Load canvas manager for cross-browser compatibility -->
+  
+  <!-- 2. Canvas manager for cross-browser compatibility -->
   <script src="canvas-manager.js"></script>
-  <!-- Load the fixed collision system -->
+  
+  <!-- 3. Shape System (THIS WAS MISSING!) -->
+  <script src="shape-system.js"></script>
+  
+  <!-- 4. Collision system -->
   <script src="collision-fixed.js"></script>
-  <!-- Then load the single-player game script -->
+  
+  <!-- 5. Main game script -->
   <script src="game.js"></script>
-  <!-- Finally, load the game initializer (starts everything) -->
+  
+  <!-- 6. Game initializer last -->
   <script src="game-init.js"></script>
+
+  <script>
+    // Add debug info updater
+    setInterval(() => {
+      if (window.game && window.game.state && window.game.state.shapeSystem) {
+        const stats = window.game.state.shapeSystem.getStatistics();
+        document.getElementById('shape-count').textContent = `Shapes: ${stats.total}`;
+        const rareCount = stats.greenRadiant + stats.blueRadiant + stats.shadow;
+        document.getElementById('rare-count').textContent = `Rare: ${rareCount}`;
+      }
+    }, 1000);
+
+    // Make game globally available for debugging
+    window.addEventListener('DOMContentLoaded', () => {
+      setTimeout(() => {
+        if (typeof Game !== 'undefined') {
+          console.log('🔧 Game debugging available via window.game');
+        }
+      }, 1000);
+    });
+  </script>
 </body>
 </html>

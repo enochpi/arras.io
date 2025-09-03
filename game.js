@@ -1,6 +1,6 @@
 /**
- * Arras.io Single-Player Game - Enhanced with Rare Shape System
- * Features Green Radiant, Blue Radiant, and Shadow shapes with visual effects
+ * Arras.io Single-Player Game - Enhanced with Amazing Rare Shape Visuals
+ * Features smooth Green Radiant, Blue Radiant, and proximity-based Shadow shapes
  */
 
 // ==================== GAME CONFIGURATION ====================
@@ -183,11 +183,15 @@ class Game {
     this.canvas = document.getElementById('gameCanvas');
     this.ctx = this.canvas.getContext('2d');
     this.minimapCanvas = document.getElementById('minimapCanvas');
-    this.minimapCtx = this.minimapCanvas.getContext('2d');
+    this.minimapCtx = this.minimapCanvas ? this.minimapCanvas.getContext('2d') : null;
     
     this.state = new GameState();
     this.lastTime = 0;
     this.running = true;
+    this.fps = 0;
+    this.frameCount = 0;
+    this.lastFPSTime = Date.now();
+    this.lastStatsUpdate = Date.now();
     
     // Initialize systems
     this.initializeSystems();
@@ -202,7 +206,7 @@ class Game {
     if (typeof ShapeSystem !== 'undefined') {
       this.state.shapeSystem = new ShapeSystem(CONFIG.WORLD_WIDTH, CONFIG.WORLD_HEIGHT);
       this.state.shapeSystem.setMaxShapes(CONFIG.MAX_SHAPES);
-      console.log('✅ ShapeSystem initialized with rare shapes support');
+      console.log('✅ Enhanced ShapeSystem initialized with rare shapes support');
     } else {
       console.warn('⚠️ ShapeSystem not found, using basic shapes');
     }
@@ -224,8 +228,10 @@ class Game {
   resizeCanvas() {
     this.canvas.width = window.innerWidth;
     this.canvas.height = window.innerHeight;
-    this.minimapCanvas.width = 176;
-    this.minimapCanvas.height = 176;
+    if (this.minimapCanvas) {
+      this.minimapCanvas.width = 176;
+      this.minimapCanvas.height = 176;
+    }
   }
   
   setupEventListeners() {
@@ -238,15 +244,24 @@ class Game {
         this.toggleUpgradeMenu();
       }
       
-      // Test spawning rare shapes (debug keys)
+      // Debug keys for spawning rare shapes (less verbose logging)
       if (e.code === 'KeyG' && this.state.shapeSystem) {
-        this.state.shapeSystem.spawnRareShape('greenRadiant', this.state.player);
+        const shape = this.state.shapeSystem.spawnRareShape('greenRadiant', this.state.player);
+        if (shape) this.showRareNotification('Green Radiant spawned! ⭐');
       }
       if (e.code === 'KeyB' && this.state.shapeSystem) {
-        this.state.shapeSystem.spawnRareShape('blueRadiant', this.state.player);
+        const shape = this.state.shapeSystem.spawnRareShape('blueRadiant', this.state.player);
+        if (shape) this.showRareNotification('Blue Radiant spawned! ✨');
       }
       if (e.code === 'KeyN' && this.state.shapeSystem) {
-        this.state.shapeSystem.spawnRareShape('shadow', this.state.player);
+        const shape = this.state.shapeSystem.spawnRareShape('shadow', this.state.player);
+        if (shape) this.showRareNotification('Shadow spawned! ☠️');
+      }
+      
+      // Show stats (less frequent)
+      if (e.code === 'KeyI' && this.state.shapeSystem) {
+        const stats = this.state.shapeSystem.getStatistics();
+        console.log('📊 Current shape statistics:', stats);
       }
     });
     
@@ -333,7 +348,7 @@ class Game {
     // Update projectiles
     this.state.projectiles = this.state.projectiles.filter(p => p.update(deltaTime));
     
-    // Update shapes
+    // Update shapes (removed excessive logging)
     if (this.state.shapeSystem) {
       this.state.shapeSystem.update(deltaTime, { x: this.state.player.x, y: this.state.player.y });
       this.state.shapes = this.state.shapeSystem.getAllShapes();
@@ -361,6 +376,9 @@ class Game {
     
     // Update UI
     this.updateUI();
+    
+    // Update FPS
+    this.updateFPS();
   }
   
   updatePlayer(deltaTime) {
@@ -439,10 +457,12 @@ class Game {
           if (result.xpAwarded > 0) {
             this.addXP(result.xpAwarded);
             this.state.player.score += result.xpAwarded * 10;
+            
+            // Special notifications for rare shapes (less spam)
+            if (result.rarity !== 'normal') {
+              this.showRareShapeNotification(result.rarity, result.type, result.xpAwarded);
+            }
           }
-        } else if (!result.destroyed && result.shape) {
-          // Create hit particles
-          this.state.collisionSystem.createCollisionParticles(result, this.state.particles);
         }
         
         // Check game over
@@ -454,6 +474,51 @@ class Game {
       // Fallback to basic collision detection
       this.basicCollisionCheck();
     }
+  }
+  
+  showRareShapeNotification(rarity, type, xp) {
+    const rarityEmoji = {
+      'greenRadiant': '⭐',
+      'blueRadiant': '✨', 
+      'shadow': '☠️'
+    };
+    
+    const rarityName = {
+      'greenRadiant': 'GREEN RADIANT',
+      'blueRadiant': 'BLUE RADIANT',
+      'shadow': 'SHADOW'
+    };
+    
+    console.log(`${rarityEmoji[rarity]} ${rarityName[rarity]} ${type.toUpperCase()} DESTROYED! +${xp} XP!`);
+    
+    // Create visual notification
+    this.createFloatingText(
+      this.state.player.x,
+      this.state.player.y - 50,
+      `${rarityEmoji[rarity]} +${xp} XP!`,
+      rarity === 'shadow' ? '#8B00FF' : rarity === 'blueRadiant' ? '#00BFFF' : '#00FF00'
+    );
+  }
+  
+  showRareNotification(message) {
+    // Create temporary notification element
+    const notification = document.createElement('div');
+    notification.className = 'rare-notification';
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    // Remove after animation
+    setTimeout(() => {
+      notification.remove();
+    }, 2000);
+  }
+  
+  createFloatingText(x, y, text, color) {
+    // Add floating text particle
+    this.state.particles.push(new Particle(
+      x, y, 0, -2, color, 16, 
+      { glow: true, fadeRate: 0.01, trail: false }
+    ));
   }
   
   basicCollisionCheck() {
@@ -489,14 +554,20 @@ class Game {
             this.addXP(shape.xp);
             player.score += shape.xp * 10;
             
+            // Show rare shape notification
+            if (shape.rarity !== 'normal') {
+              this.showRareShapeNotification(shape.rarity, shape.type, shape.xp);
+            }
+            
             // Create destruction particles
-            for (let k = 0; k < 10; k++) {
+            for (let k = 0; k < 15; k++) {
               this.state.particles.push(new Particle(
                 shape.x, shape.y,
-                (Math.random() - 0.5) * 8,
-                (Math.random() - 0.5) * 8,
+                (Math.random() - 0.5) * 10,
+                (Math.random() - 0.5) * 10,
                 shape.particleColor || shape.color,
-                Math.random() * 8 + 3
+                Math.random() * 8 + 3,
+                { glow: shape.rarity !== 'normal' }
               ));
             }
             
@@ -524,13 +595,13 @@ class Game {
       
       // Auto-open upgrade menu on level up
       if (player.upgradePoints > 0) {
-        this.toggleUpgradeMenu();
+        setTimeout(() => this.toggleUpgradeMenu(), 500);
       }
     }
   }
   
   gameOver() {
-    alert(`Game Over! Final Score: ${this.state.player.score}`);
+    alert(`Game Over! Final Score: ${this.state.player.score.toLocaleString()}`);
     this.state.reset();
   }
   
@@ -538,18 +609,62 @@ class Game {
     const player = this.state.player;
     
     // Update score and level
-    document.getElementById('score').textContent = player.score;
-    document.getElementById('level').textContent = player.level;
+    const scoreElement = document.getElementById('score');
+    const levelElement = document.getElementById('level');
+    if (scoreElement) scoreElement.textContent = player.score.toLocaleString();
+    if (levelElement) levelElement.textContent = player.level;
     
     // Update health bar
-    const healthPercent = (player.health / player.maxHealth) * 100;
-    document.getElementById('health-fill').style.width = `${healthPercent}%`;
-    document.getElementById('health-text').textContent = `${Math.ceil(player.health)}/${player.maxHealth}`;
+    const healthFill = document.getElementById('health-fill');
+    const healthText = document.getElementById('health-text');
+    if (healthFill && healthText) {
+      const healthPercent = (player.health / player.maxHealth) * 100;
+      healthFill.style.width = `${healthPercent}%`;
+      healthText.textContent = `${Math.ceil(player.health)}/${player.maxHealth}`;
+    }
     
     // Update XP bar
-    const xpPercent = (player.xp / player.xpToNext) * 100;
-    document.getElementById('xp-fill').style.width = `${xpPercent}%`;
-    document.getElementById('xp-text').textContent = `${Math.floor(player.xp)}/${player.xpToNext}`;
+    const xpFill = document.getElementById('xp-fill');
+    const xpText = document.getElementById('xp-text');
+    if (xpFill && xpText) {
+      const xpPercent = (player.xp / player.xpToNext) * 100;
+      xpFill.style.width = `${xpPercent}%`;
+      xpText.textContent = `${Math.floor(player.xp)}/${player.xpToNext}`;
+    }
+
+    // Update debug stats less frequently to avoid lag
+    const now = Date.now();
+    if (now - this.lastStatsUpdate > 1000) { // Only update every second
+      if (this.state.shapeSystem) {
+        const stats = this.state.shapeSystem.getStatistics();
+        const shapeCountEl = document.getElementById('shape-count');
+        const rareCountEl = document.getElementById('rare-count');
+        
+        if (shapeCountEl) shapeCountEl.textContent = `Shapes: ${stats.total}`;
+        if (rareCountEl) {
+          const rareCount = stats.greenRadiant + stats.blueRadiant + stats.shadow;
+          rareCountEl.textContent = `Rare: ${rareCount}`;
+        }
+      }
+      this.lastStatsUpdate = now;
+    }
+  }
+  
+  updateFPS() {
+    this.frameCount++;
+    const now = Date.now();
+    
+    if (now - this.lastFPSTime >= 1000) {
+      this.fps = this.frameCount;
+      this.frameCount = 0;
+      this.lastFPSTime = now;
+      
+      // Update FPS display
+      const fpsElement = document.getElementById('fps');
+      if (fpsElement) {
+        fpsElement.textContent = `FPS: ${this.fps}`;
+      }
+    }
   }
   
   // ==================== RENDERING ====================
@@ -660,69 +775,130 @@ class Game {
   
   drawShapes() {
     this.state.shapes.forEach(shape => {
-      if (this.state.shapeSystem) {
-        // Get visual properties from shape system
-        const visualProps = this.state.shapeSystem.getShapeVisualProperties(shape);
-        this.drawShapeWithEffects(shape, visualProps);
-      } else {
-        // Basic shape drawing
-        this.drawBasicShape(shape);
-      }
+      // Calculate distance to player for shadow visibility
+      const distToPlayer = Math.sqrt(
+        Math.pow(shape.x - this.state.player.x, 2) + 
+        Math.pow(shape.y - this.state.player.y, 2)
+      );
+      
+      this.drawEnhancedShape(shape, distToPlayer);
     });
   }
   
-  drawShapeWithEffects(shape, visualProps) {
+  drawEnhancedShape(shape, distToPlayer) {
     this.ctx.save();
     this.ctx.translate(shape.x, shape.y);
     
-    // Apply pulse scaling for rare shapes
-    if (visualProps.pulseAmount !== 0) {
-      this.ctx.scale(visualProps.pulseAmount, visualProps.pulseAmount);
+    // AMAZING VISUAL EFFECTS FOR RARE SHAPES!
+    if (shape.rarity === 'greenRadiant') {
+      // Green Radiant: Bright green with pulsing glow
+      const pulse = Math.sin(Date.now() * 0.005) * 0.3 + 0.7;
+      this.ctx.shadowColor = '#00FF00';
+      this.ctx.shadowBlur = 20 * pulse;
+      
+      // Green aura
+      const auraGradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, shape.size * 2);
+      auraGradient.addColorStop(0, `rgba(0, 255, 0, ${0.3 * pulse})`);
+      auraGradient.addColorStop(0.7, `rgba(0, 255, 0, ${0.1 * pulse})`);
+      auraGradient.addColorStop(1, 'rgba(0, 255, 0, 0)');
+      
+      this.ctx.fillStyle = auraGradient;
+      this.ctx.beginPath();
+      this.ctx.arc(0, 0, shape.size * 2, 0, Math.PI * 2);
+      this.ctx.fill();
+      
+      // Make shape green
+      shape.color = '#00FF00';
+      
+    } else if (shape.rarity === 'blueRadiant') {
+      // Blue Radiant: Bright light blue with intense glow
+      const pulse = Math.sin(Date.now() * 0.008) * 0.4 + 0.6;
+      this.ctx.shadowColor = '#00BFFF';
+      this.ctx.shadowBlur = 30 * pulse;
+      
+      // Blue aura with sparkles
+      const auraGradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, shape.size * 2.5);
+      auraGradient.addColorStop(0, `rgba(0, 191, 255, ${0.4 * pulse})`);
+      auraGradient.addColorStop(0.6, `rgba(0, 191, 255, ${0.2 * pulse})`);
+      auraGradient.addColorStop(1, 'rgba(0, 191, 255, 0)');
+      
+      this.ctx.fillStyle = auraGradient;
+      this.ctx.beginPath();
+      this.ctx.arc(0, 0, shape.size * 2.5, 0, Math.PI * 2);
+      this.ctx.fill();
+      
+      // Make shape light blue
+      shape.color = '#87CEEB';
+      
+    } else if (shape.rarity === 'shadow') {
+      // Shadow: Proximity-based visibility - INVISIBLE until close!
+      const maxVisibilityDistance = 150; // Only visible within 150 pixels
+      let alpha = 1 - (distToPlayer / maxVisibilityDistance);
+      alpha = Math.max(0, Math.min(1, alpha)); // Clamp between 0 and 1
+      
+      if (alpha <= 0.1) {
+        // Almost completely invisible - draw just a faint outline
+        this.ctx.strokeStyle = `rgba(139, 0, 255, ${alpha * 0.3})`;
+        this.ctx.lineWidth = 1;
+        this.drawShapeOutline(shape);
+        this.ctx.stroke();
+        this.ctx.restore();
+        return; // Don't draw the main shape
+      }
+      
+      // Dark shadow effect
+      this.ctx.shadowColor = '#8B00FF';
+      this.ctx.shadowBlur = 15 * alpha;
+      
+      // Purple shadow aura
+      const shadowGradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, shape.size * 1.8);
+      shadowGradient.addColorStop(0, `rgba(139, 0, 255, ${0.2 * alpha})`);
+      shadowGradient.addColorStop(0.8, `rgba(139, 0, 255, ${0.1 * alpha})`);
+      shadowGradient.addColorStop(1, 'rgba(139, 0, 255, 0)');
+      
+      this.ctx.fillStyle = shadowGradient;
+      this.ctx.beginPath();
+      this.ctx.arc(0, 0, shape.size * 1.8, 0, Math.PI * 2);
+      this.ctx.fill();
+      
+      // Make shape dark with transparency based on distance
+      shape.color = `rgba(50, 0, 100, ${alpha})`;
     }
     
     this.ctx.rotate(shape.angle);
     
-    // Draw shadow aura for Shadow shapes
-    if (shape.hasShadowAura) {
-      this.ctx.shadowColor = shape.glowColor;
-      this.ctx.shadowBlur = visualProps.shadowBlur;
-      
-      // Draw dark outer aura
-      const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, shape.size * 1.5);
-      gradient.addColorStop(0, 'rgba(139, 0, 255, 0)');
-      gradient.addColorStop(0.5, 'rgba(139, 0, 255, 0.2)');
-      gradient.addColorStop(1, 'rgba(139, 0, 255, 0.5)');
-      
-      this.ctx.fillStyle = gradient;
-      this.ctx.beginPath();
-      this.ctx.arc(0, 0, shape.size * 1.5, 0, Math.PI * 2);
-      this.ctx.fill();
-    }
+    // Draw main shape body
+    this.ctx.fillStyle = shape.color;
+    this.ctx.strokeStyle = this.darkenColor(shape.color);
+    this.ctx.lineWidth = shape.rarity !== 'normal' ? 4 : 3;
     
-    // Draw radiant glow for Green/Blue Radiant shapes
-    if (shape.hasRadiance) {
-      this.ctx.shadowColor = shape.glowColor;
-      this.ctx.shadowBlur = visualProps.shadowBlur;
-      
-      // Draw bright glow
-      const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, shape.size * 1.3);
-      const glowColor = shape.glowColor;
-      gradient.addColorStop(0, this.hexToRgba(glowColor, 0.3));
-      gradient.addColorStop(0.7, this.hexToRgba(glowColor, 0.1));
-      gradient.addColorStop(1, this.hexToRgba(glowColor, 0));
-      
-      this.ctx.fillStyle = gradient;
-      this.ctx.beginPath();
-      this.ctx.arc(0, 0, shape.size * 1.3, 0, Math.PI * 2);
-      this.ctx.fill();
-    }
+    this.drawShapeOutline(shape);
+    this.ctx.fill();
+    this.ctx.stroke();
     
-    // Draw the main shape body
+    // Reset shadow
     this.ctx.shadowBlur = 0;
-    this.ctx.fillStyle = visualProps.baseColor;
-    this.ctx.strokeStyle = this.darkenColor(visualProps.baseColor);
-    this.ctx.lineWidth = visualProps.strokeWidth;
     
+    this.ctx.restore();
+    
+    // Draw health bar if damaged (not for invisible shadows)
+    if (shape.health < shape.maxHealth && !(shape.rarity === 'shadow' && distToPlayer > 100)) {
+      const barWidth = shape.size * 2;
+      const barHeight = 4;
+      const barY = shape.y - shape.size - 10;
+      
+      // Background
+      this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      this.ctx.fillRect(shape.x - barWidth/2, barY, barWidth, barHeight);
+      
+      // Health fill
+      const healthPercent = shape.health / shape.maxHealth;
+      this.ctx.fillStyle = '#FF6B6B';
+      this.ctx.fillRect(shape.x - barWidth/2, barY, barWidth * healthPercent, barHeight);
+    }
+  }
+  
+  drawShapeOutline(shape) {
     this.ctx.beginPath();
     if (shape.sides === 4) {
       // Square
@@ -742,84 +918,6 @@ class Game {
       }
       this.ctx.closePath();
     }
-    
-    this.ctx.fill();
-    this.ctx.stroke();
-    
-    // Add inner glow for rare shapes
-    if (shape.rarity !== 'normal') {
-      const innerGradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, shape.size);
-      innerGradient.addColorStop(0, this.hexToRgba(shape.glowColor, 0.3));
-      innerGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-      this.ctx.fillStyle = innerGradient;
-      this.ctx.fill();
-    }
-    
-    this.ctx.restore();
-    
-    // Draw health bar if damaged
-    if (shape.health < shape.maxHealth) {
-      const barWidth = shape.size * 2;
-      const barHeight = 4;
-      const barY = shape.y - shape.size - 10;
-      
-      // Background
-      this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-      this.ctx.fillRect(shape.x - barWidth/2, barY, barWidth, barHeight);
-      
-      // Health fill
-      const healthPercent = shape.health / shape.maxHealth;
-      this.ctx.fillStyle = '#FF6B6B';
-      this.ctx.fillRect(shape.x - barWidth/2, barY, barWidth * healthPercent, barHeight);
-    }
-    
-    // Draw rarity indicator
-    if (shape.rarity !== 'normal') {
-      this.ctx.save();
-      this.ctx.font = 'bold 10px Arial';
-      this.ctx.textAlign = 'center';
-      this.ctx.fillStyle = shape.glowColor;
-      this.ctx.strokeStyle = 'black';
-      this.ctx.lineWidth = 2;
-      
-      let rarityText = '';
-      if (shape.rarity === 'greenRadiant') rarityText = '★';
-      else if (shape.rarity === 'blueRadiant') rarityText = '★★';
-      else if (shape.rarity === 'shadow') rarityText = '☠';
-      
-      this.ctx.strokeText(rarityText, shape.x, shape.y - shape.size - 20);
-      this.ctx.fillText(rarityText, shape.x, shape.y - shape.size - 20);
-      this.ctx.restore();
-    }
-  }
-  
-  drawBasicShape(shape) {
-    this.ctx.save();
-    this.ctx.translate(shape.x, shape.y);
-    this.ctx.rotate(shape.angle);
-    
-    // Draw shape
-    this.ctx.fillStyle = shape.color;
-    this.ctx.strokeStyle = this.darkenColor(shape.color);
-    this.ctx.lineWidth = 3;
-    
-    this.ctx.beginPath();
-    for (let i = 0; i < shape.sides; i++) {
-      const angle = (i / shape.sides) * Math.PI * 2;
-      const x = Math.cos(angle) * shape.size;
-      const y = Math.sin(angle) * shape.size;
-      
-      if (i === 0) {
-        this.ctx.moveTo(x, y);
-      } else {
-        this.ctx.lineTo(x, y);
-      }
-    }
-    this.ctx.closePath();
-    this.ctx.fill();
-    this.ctx.stroke();
-    
-    this.ctx.restore();
   }
   
   drawProjectiles() {
@@ -894,6 +992,8 @@ class Game {
   }
   
   drawMinimap() {
+    if (!this.minimapCtx) return;
+    
     const ctx = this.minimapCtx;
     const scale = 176 / Math.max(CONFIG.WORLD_WIDTH, CONFIG.WORLD_HEIGHT);
     
@@ -911,18 +1011,28 @@ class Game {
       const x = shape.x * scale;
       const y = shape.y * scale;
       
-      // Color based on rarity
+      // Color and size based on rarity
+      let color, size;
       if (shape.rarity === 'greenRadiant') {
-        ctx.fillStyle = '#00FF00';
+        color = '#00FF00';
+        size = 3;
       } else if (shape.rarity === 'blueRadiant') {
-        ctx.fillStyle = '#00BFFF';
+        color = '#00BFFF';
+        size = 4;
       } else if (shape.rarity === 'shadow') {
-        ctx.fillStyle = '#8B00FF';
+        const distToPlayer = Math.sqrt(
+          Math.pow(shape.x - this.state.player.x, 2) + 
+          Math.pow(shape.y - this.state.player.y, 2)
+        );
+        const alpha = 1 - (distToPlayer / 150);
+        color = `rgba(139, 0, 255, ${Math.max(0.3, alpha)})`;
+        size = 2;
       } else {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+        color = 'rgba(255, 255, 255, 0.3)';
+        size = 1;
       }
       
-      const size = shape.rarity !== 'normal' ? 2 : 1;
+      ctx.fillStyle = color;
       ctx.fillRect(x - size/2, y - size/2, size, size);
     });
     
@@ -946,6 +1056,8 @@ class Game {
   
   // ==================== HELPER FUNCTIONS ====================
   darkenColor(color) {
+    if (color.includes('rgba')) return color; // Don't darken rgba colors (shadows)
+    
     const hex = color.replace('#', '');
     const r = parseInt(hex.substr(0, 2), 16);
     const g = parseInt(hex.substr(2, 2), 16);
@@ -982,7 +1094,14 @@ class Game {
 // ==================== START GAME ====================
 window.addEventListener('DOMContentLoaded', () => {
   const game = new Game();
+  
+  // Make game globally available for debugging
+  window.game = game;
+  
   console.log('🎮 Arras.io Enhanced Edition started!');
-  console.log('🌟 Rare shapes enabled: Green Radiant (1/100), Blue Radiant (1/500), Shadow (1/1000)');
-  console.log('🔧 Debug: Press G for Green Radiant, B for Blue Radiant, N for Shadow shape');
+  console.log('🌟 Rare shapes with AMAZING visuals:');
+  console.log('   ⭐ Green Radiant: Bright green glow');
+  console.log('   ✨ Blue Radiant: Intense blue radiance');
+  console.log('   ☠️ Shadow: Invisible until you get close!');
+  console.log('🔧 Debug keys: G, B, N, I');
 });
