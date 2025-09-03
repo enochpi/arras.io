@@ -1,6 +1,6 @@
 /**
- * Arras.io Single-Player Game - Complete Client-Side Implementation
- * No server required - runs entirely in the browser
+ * Arras.io Single-Player Game - Enhanced with Rare Shape System
+ * Features Green Radiant, Blue Radiant, and Shadow shapes with visual effects
  */
 
 // ==================== GAME CONFIGURATION ====================
@@ -24,24 +24,15 @@ const CONFIG = {
   BULLET_LIFETIME: 2000, // milliseconds
   
   // Shape settings
-  MAX_SHAPES: 5000,
-  SHAPE_SPAWN_RATE: 100, // milliseconds
-  SHAPES: {
-    triangle: { sides: 3, size: 25, health: 30, xp: 10, color: '#FF6B6B', speed: 1 },
-    square: { sides: 4, size: 30, health: 50, xp: 20, color: '#FFE66D', speed: 0.8 },
-    pentagon: { sides: 5, size: 35, health: 80, xp: 35, color: '#4ECDC4', speed: 0.6 },
-    hexagon: { sides: 6, size: 40, health: 120, xp: 50, color: '#A8E6CF', speed: 0.4 }
-  },
-  
-  // Level system
-  XP_PER_LEVEL: 100,
-  UPGRADE_POINTS_PER_LEVEL: 1
+  MAX_SHAPES: 250,
+  SHAPE_SPAWN_RATE: 5000, // milliseconds
 };
 
 // ==================== GAME STATE ====================
 class GameState {
   constructor() {
     this.player = {
+      id: 'player_' + Math.random().toString(36).substr(2, 9),
       x: CONFIG.WORLD_WIDTH / 2,
       y: CONFIG.WORLD_HEIGHT / 2,
       vx: 0,
@@ -52,7 +43,7 @@ class GameState {
       score: 0,
       level: 1,
       xp: 0,
-      xpToNext: CONFIG.XP_PER_LEVEL,
+      xpToNext: 100,
       upgradePoints: 0,
       stats: {
         damage: 1,
@@ -70,8 +61,11 @@ class GameState {
     this.keys = {};
     this.mouse = { x: 0, y: 0, pressed: false };
     this.lastShot = 0;
-    this.lastShapeSpawn = 0;
     this.upgradeMenuOpen = false;
+    
+    // Systems
+    this.shapeSystem = null;
+    this.collisionSystem = null;
   }
   
   reset() {
@@ -84,50 +78,11 @@ class GameState {
     this.player.level = 1;
     this.player.xp = 0;
     this.projectiles = [];
-    this.shapes = [];
     this.particles = [];
-  }
-}
-
-// ==================== SHAPE CLASS ====================
-class Shape {
-  constructor(type, x, y) {
-    const config = CONFIG.SHAPES[type];
-    this.type = type;
-    this.x = x;
-    this.y = y;
-    this.vx = (Math.random() - 0.5) * config.speed;
-    this.vy = (Math.random() - 0.5) * config.speed;
-    this.sides = config.sides;
-    this.size = config.size;
-    this.health = config.health;
-    this.maxHealth = config.health;
-    this.xp = config.xp;
-    this.color = config.color;
-    this.angle = Math.random() * Math.PI * 2;
-    this.rotationSpeed = (Math.random() - 0.5) * 0.02;
-  }
-  
-  update() {
-    // Simple movement with boundary bouncing
-    this.x += this.vx;
-    this.y += this.vy;
-    this.angle += this.rotationSpeed;
-    
-    // Bounce off walls
-    if (this.x - this.size < 0 || this.x + this.size > CONFIG.WORLD_WIDTH) {
-      this.vx *= -1;
-      this.x = Math.max(this.size, Math.min(CONFIG.WORLD_WIDTH - this.size, this.x));
+    if (this.shapeSystem) {
+      this.shapeSystem.clear();
+      this.shapeSystem.initialize({ x: this.player.x, y: this.player.y });
     }
-    if (this.y - this.size < 0 || this.y + this.size > CONFIG.WORLD_HEIGHT) {
-      this.vy *= -1;
-      this.y = Math.max(this.size, Math.min(CONFIG.WORLD_HEIGHT - this.size, this.y));
-    }
-  }
-  
-  takeDamage(damage) {
-    this.health -= damage;
-    return this.health <= 0;
   }
 }
 
@@ -160,24 +115,65 @@ class Projectile {
 
 // ==================== PARTICLE CLASS ====================
 class Particle {
-  constructor(x, y, color, size = 5) {
+  constructor(x, y, vx, vy, color, size, options = {}) {
     this.x = x;
     this.y = y;
-    this.vx = (Math.random() - 0.5) * 5;
-    this.vy = (Math.random() - 0.5) * 5;
+    this.vx = vx;
+    this.vy = vy;
     this.color = color;
     this.size = size;
     this.lifetime = 1;
+    
+    // Enhanced properties for rare shapes
+    this.glow = options.glow || false;
+    this.trail = options.trail || false;
+    this.sparkle = options.sparkle || false;
+    this.shadowAura = options.shadowAura || false;
+    this.spiralMotion = options.spiralMotion || false;
+    this.pulseRate = options.pulseRate || 0;
+    this.fadeRate = options.fadeRate || 0.02;
+    this.ring = options.ring || false;
+    this.rarity = options.rarity || 'normal';
+    
+    this.initialSize = size;
+    this.trailPositions = [];
   }
   
   update(deltaTime) {
+    // Store trail positions
+    if (this.trail && this.trailPositions.length < 10) {
+      this.trailPositions.push({ x: this.x, y: this.y, alpha: this.lifetime });
+    }
+    
+    // Update position
     this.x += this.vx;
     this.y += this.vy;
-    this.vx *= 0.98;
-    this.vy *= 0.98;
-    this.lifetime -= deltaTime / 500;
+    
+    // Apply special motion effects
+    if (this.spiralMotion) {
+      const angle = Math.atan2(this.vy, this.vx);
+      const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+      const newAngle = angle + 0.1;
+      this.vx = Math.cos(newAngle) * speed * 0.98;
+      this.vy = Math.sin(newAngle) * speed * 0.98;
+    } else {
+      // Normal friction
+      this.vx *= 0.98;
+      this.vy *= 0.98;
+    }
+    
+    // Update lifetime
+    this.lifetime -= this.fadeRate;
+    
+    // Update size
     this.size *= 0.98;
-    return this.lifetime > 0;
+    
+    // Pulse effect
+    if (this.pulseRate > 0) {
+      this.size = this.initialSize * (1 + Math.sin(Date.now() * this.pulseRate) * 0.1) * this.lifetime;
+    }
+    
+    return this.lifetime > 0 && this.size > 0.1;
   }
 }
 
@@ -193,10 +189,31 @@ class Game {
     this.lastTime = 0;
     this.running = true;
     
+    // Initialize systems
+    this.initializeSystems();
     this.setupCanvas();
     this.setupEventListeners();
-    this.spawnInitialShapes();
+    this.initializeShapes();
     this.gameLoop(0);
+  }
+  
+  initializeSystems() {
+    // Initialize ShapeSystem if available
+    if (typeof ShapeSystem !== 'undefined') {
+      this.state.shapeSystem = new ShapeSystem(CONFIG.WORLD_WIDTH, CONFIG.WORLD_HEIGHT);
+      this.state.shapeSystem.setMaxShapes(CONFIG.MAX_SHAPES);
+      console.log('✅ ShapeSystem initialized with rare shapes support');
+    } else {
+      console.warn('⚠️ ShapeSystem not found, using basic shapes');
+    }
+    
+    // Initialize CollisionSystem if available
+    if (typeof CollisionSystem !== 'undefined') {
+      this.state.collisionSystem = new CollisionSystem();
+      console.log('✅ CollisionSystem initialized with enhanced effects');
+    } else {
+      console.warn('⚠️ CollisionSystem not found, using basic collisions');
+    }
   }
   
   setupCanvas() {
@@ -219,6 +236,17 @@ class Game {
       // Toggle upgrade menu
       if (e.code === 'KeyU' && this.state.player.upgradePoints > 0) {
         this.toggleUpgradeMenu();
+      }
+      
+      // Test spawning rare shapes (debug keys)
+      if (e.code === 'KeyG' && this.state.shapeSystem) {
+        this.state.shapeSystem.spawnRareShape('greenRadiant', this.state.player);
+      }
+      if (e.code === 'KeyB' && this.state.shapeSystem) {
+        this.state.shapeSystem.spawnRareShape('blueRadiant', this.state.player);
+      }
+      if (e.code === 'KeyN' && this.state.shapeSystem) {
+        this.state.shapeSystem.spawnRareShape('shadow', this.state.player);
       }
     });
     
@@ -291,25 +319,9 @@ class Game {
     }
   }
   
-  spawnInitialShapes() {
-    for (let i = 0; i < 20; i++) {
-      this.spawnShape();
-    }
-  }
-  
-  spawnShape() {
-    const types = Object.keys(CONFIG.SHAPES);
-    const type = types[Math.floor(Math.random() * types.length)];
-    const x = Math.random() * CONFIG.WORLD_WIDTH;
-    const y = Math.random() * CONFIG.WORLD_HEIGHT;
-    
-    // Don't spawn too close to player
-    const dx = x - this.state.player.x;
-    const dy = y - this.state.player.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    
-    if (dist > 200) {
-      this.state.shapes.push(new Shape(type, x, y));
+  initializeShapes() {
+    if (this.state.shapeSystem) {
+      this.state.shapeSystem.initialize({ x: this.state.player.x, y: this.state.player.y });
     }
   }
   
@@ -322,21 +334,20 @@ class Game {
     this.state.projectiles = this.state.projectiles.filter(p => p.update(deltaTime));
     
     // Update shapes
-    this.state.shapes.forEach(shape => shape.update());
+    if (this.state.shapeSystem) {
+      this.state.shapeSystem.update(deltaTime, { x: this.state.player.x, y: this.state.player.y });
+      this.state.shapes = this.state.shapeSystem.getAllShapes();
+    }
     
     // Update particles
-    this.state.particles = this.state.particles.filter(p => p.update(deltaTime));
+    if (this.state.collisionSystem) {
+      this.state.collisionSystem.updateParticles(this.state.particles, deltaTime);
+    } else {
+      this.state.particles = this.state.particles.filter(p => p.update(deltaTime));
+    }
     
     // Check collisions
     this.checkCollisions();
-    
-    // Spawn new shapes periodically
-    if (Date.now() - this.state.lastShapeSpawn > CONFIG.SHAPE_SPAWN_RATE) {
-      if (this.state.shapes.length < CONFIG.MAX_SHAPES) {
-        this.spawnShape();
-      }
-      this.state.lastShapeSpawn = Date.now();
-    }
     
     // Player regeneration
     if (this.state.player.health < this.state.player.maxHealth) {
@@ -414,6 +425,38 @@ class Game {
   }
   
   checkCollisions() {
+    if (this.state.collisionSystem) {
+      // Use the enhanced collision system
+      const results = this.state.collisionSystem.handleAllCollisions(this.state);
+      
+      // Process collision results
+      for (const result of results) {
+        if (result.destroyed && result.shape) {
+          // Create particles for destroyed shape
+          this.state.collisionSystem.createCollisionParticles(result, this.state.particles);
+          
+          // Add XP with level check
+          if (result.xpAwarded > 0) {
+            this.addXP(result.xpAwarded);
+            this.state.player.score += result.xpAwarded * 10;
+          }
+        } else if (!result.destroyed && result.shape) {
+          // Create hit particles
+          this.state.collisionSystem.createCollisionParticles(result, this.state.particles);
+        }
+        
+        // Check game over
+        if (this.state.player.health <= 0) {
+          this.gameOver();
+        }
+      }
+    } else {
+      // Fallback to basic collision detection
+      this.basicCollisionCheck();
+    }
+  }
+  
+  basicCollisionCheck() {
     const player = this.state.player;
     
     // Check projectile-shape collisions
@@ -428,21 +471,33 @@ class Game {
         
         if (dist < projectile.size + shape.size) {
           // Hit!
-          const destroyed = shape.takeDamage(projectile.damage);
+          shape.health -= projectile.damage;
           
           // Create hit particles
           for (let k = 0; k < 5; k++) {
-            this.state.particles.push(new Particle(shape.x, shape.y, shape.color));
+            this.state.particles.push(new Particle(
+              shape.x, shape.y,
+              (Math.random() - 0.5) * 5,
+              (Math.random() - 0.5) * 5,
+              shape.particleColor || shape.color,
+              Math.random() * 5 + 2
+            ));
           }
           
-          if (destroyed) {
+          if (shape.health <= 0) {
             // Shape destroyed
             this.addXP(shape.xp);
             player.score += shape.xp * 10;
             
             // Create destruction particles
             for (let k = 0; k < 10; k++) {
-              this.state.particles.push(new Particle(shape.x, shape.y, shape.color, 8));
+              this.state.particles.push(new Particle(
+                shape.x, shape.y,
+                (Math.random() - 0.5) * 8,
+                (Math.random() - 0.5) * 8,
+                shape.particleColor || shape.color,
+                Math.random() * 8 + 3
+              ));
             }
             
             this.state.shapes.splice(j, 1);
@@ -451,40 +506,6 @@ class Game {
           // Remove projectile
           this.state.projectiles.splice(i, 1);
           break;
-        }
-      }
-    }
-    
-    // Check player-shape collisions
-    for (let i = this.state.shapes.length - 1; i >= 0; i--) {
-      const shape = this.state.shapes[i];
-      const dx = player.x - shape.x;
-      const dy = player.y - shape.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      
-      if (dist < CONFIG.PLAYER_SIZE + shape.size) {
-        // Collision damage
-        player.health -= 5;
-        
-        // Push both away
-        const pushAngle = Math.atan2(dy, dx);
-        player.x += Math.cos(pushAngle) * 5;
-        player.y += Math.sin(pushAngle) * 5;
-        shape.x -= Math.cos(pushAngle) * 5;
-        shape.y -= Math.sin(pushAngle) * 5;
-        
-        // Create collision particles
-        for (let j = 0; j < 3; j++) {
-          this.state.particles.push(new Particle(
-            (player.x + shape.x) / 2,
-            (player.y + shape.y) / 2,
-            '#FF0000'
-          ));
-        }
-        
-        // Check game over
-        if (player.health <= 0) {
-          this.gameOver();
         }
       }
     }
@@ -498,8 +519,8 @@ class Game {
     while (player.xp >= player.xpToNext) {
       player.xp -= player.xpToNext;
       player.level++;
-      player.xpToNext = CONFIG.XP_PER_LEVEL * player.level;
-      player.upgradePoints += CONFIG.UPGRADE_POINTS_PER_LEVEL;
+      player.xpToNext = 100 * player.level;
+      player.upgradePoints += 1;
       
       // Auto-open upgrade menu on level up
       if (player.upgradePoints > 0) {
@@ -639,16 +660,75 @@ class Game {
   
   drawShapes() {
     this.state.shapes.forEach(shape => {
-      this.ctx.save();
-      this.ctx.translate(shape.x, shape.y);
-      this.ctx.rotate(shape.angle);
+      if (this.state.shapeSystem) {
+        // Get visual properties from shape system
+        const visualProps = this.state.shapeSystem.getShapeVisualProperties(shape);
+        this.drawShapeWithEffects(shape, visualProps);
+      } else {
+        // Basic shape drawing
+        this.drawBasicShape(shape);
+      }
+    });
+  }
+  
+  drawShapeWithEffects(shape, visualProps) {
+    this.ctx.save();
+    this.ctx.translate(shape.x, shape.y);
+    
+    // Apply pulse scaling for rare shapes
+    if (visualProps.pulseAmount !== 0) {
+      this.ctx.scale(visualProps.pulseAmount, visualProps.pulseAmount);
+    }
+    
+    this.ctx.rotate(shape.angle);
+    
+    // Draw shadow aura for Shadow shapes
+    if (shape.hasShadowAura) {
+      this.ctx.shadowColor = shape.glowColor;
+      this.ctx.shadowBlur = visualProps.shadowBlur;
       
-      // Draw shape
-      this.ctx.fillStyle = shape.color;
-      this.ctx.strokeStyle = this.darkenColor(shape.color);
-      this.ctx.lineWidth = 3;
+      // Draw dark outer aura
+      const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, shape.size * 1.5);
+      gradient.addColorStop(0, 'rgba(139, 0, 255, 0)');
+      gradient.addColorStop(0.5, 'rgba(139, 0, 255, 0.2)');
+      gradient.addColorStop(1, 'rgba(139, 0, 255, 0.5)');
       
+      this.ctx.fillStyle = gradient;
       this.ctx.beginPath();
+      this.ctx.arc(0, 0, shape.size * 1.5, 0, Math.PI * 2);
+      this.ctx.fill();
+    }
+    
+    // Draw radiant glow for Green/Blue Radiant shapes
+    if (shape.hasRadiance) {
+      this.ctx.shadowColor = shape.glowColor;
+      this.ctx.shadowBlur = visualProps.shadowBlur;
+      
+      // Draw bright glow
+      const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, shape.size * 1.3);
+      const glowColor = shape.glowColor;
+      gradient.addColorStop(0, this.hexToRgba(glowColor, 0.3));
+      gradient.addColorStop(0.7, this.hexToRgba(glowColor, 0.1));
+      gradient.addColorStop(1, this.hexToRgba(glowColor, 0));
+      
+      this.ctx.fillStyle = gradient;
+      this.ctx.beginPath();
+      this.ctx.arc(0, 0, shape.size * 1.3, 0, Math.PI * 2);
+      this.ctx.fill();
+    }
+    
+    // Draw the main shape body
+    this.ctx.shadowBlur = 0;
+    this.ctx.fillStyle = visualProps.baseColor;
+    this.ctx.strokeStyle = this.darkenColor(visualProps.baseColor);
+    this.ctx.lineWidth = visualProps.strokeWidth;
+    
+    this.ctx.beginPath();
+    if (shape.sides === 4) {
+      // Square
+      this.ctx.rect(-shape.size, -shape.size, shape.size * 2, shape.size * 2);
+    } else {
+      // Other polygons
       for (let i = 0; i < shape.sides; i++) {
         const angle = (i / shape.sides) * Math.PI * 2;
         const x = Math.cos(angle) * shape.size;
@@ -661,27 +741,85 @@ class Game {
         }
       }
       this.ctx.closePath();
+    }
+    
+    this.ctx.fill();
+    this.ctx.stroke();
+    
+    // Add inner glow for rare shapes
+    if (shape.rarity !== 'normal') {
+      const innerGradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, shape.size);
+      innerGradient.addColorStop(0, this.hexToRgba(shape.glowColor, 0.3));
+      innerGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      this.ctx.fillStyle = innerGradient;
       this.ctx.fill();
-      this.ctx.stroke();
+    }
+    
+    this.ctx.restore();
+    
+    // Draw health bar if damaged
+    if (shape.health < shape.maxHealth) {
+      const barWidth = shape.size * 2;
+      const barHeight = 4;
+      const barY = shape.y - shape.size - 10;
       
+      // Background
+      this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      this.ctx.fillRect(shape.x - barWidth/2, barY, barWidth, barHeight);
+      
+      // Health fill
+      const healthPercent = shape.health / shape.maxHealth;
+      this.ctx.fillStyle = '#FF6B6B';
+      this.ctx.fillRect(shape.x - barWidth/2, barY, barWidth * healthPercent, barHeight);
+    }
+    
+    // Draw rarity indicator
+    if (shape.rarity !== 'normal') {
+      this.ctx.save();
+      this.ctx.font = 'bold 10px Arial';
+      this.ctx.textAlign = 'center';
+      this.ctx.fillStyle = shape.glowColor;
+      this.ctx.strokeStyle = 'black';
+      this.ctx.lineWidth = 2;
+      
+      let rarityText = '';
+      if (shape.rarity === 'greenRadiant') rarityText = '★';
+      else if (shape.rarity === 'blueRadiant') rarityText = '★★';
+      else if (shape.rarity === 'shadow') rarityText = '☠';
+      
+      this.ctx.strokeText(rarityText, shape.x, shape.y - shape.size - 20);
+      this.ctx.fillText(rarityText, shape.x, shape.y - shape.size - 20);
       this.ctx.restore();
+    }
+  }
+  
+  drawBasicShape(shape) {
+    this.ctx.save();
+    this.ctx.translate(shape.x, shape.y);
+    this.ctx.rotate(shape.angle);
+    
+    // Draw shape
+    this.ctx.fillStyle = shape.color;
+    this.ctx.strokeStyle = this.darkenColor(shape.color);
+    this.ctx.lineWidth = 3;
+    
+    this.ctx.beginPath();
+    for (let i = 0; i < shape.sides; i++) {
+      const angle = (i / shape.sides) * Math.PI * 2;
+      const x = Math.cos(angle) * shape.size;
+      const y = Math.sin(angle) * shape.size;
       
-      // Draw health bar if damaged
-      if (shape.health < shape.maxHealth) {
-        const barWidth = shape.size * 2;
-        const barHeight = 4;
-        const barY = shape.y - shape.size - 10;
-        
-        // Background
-        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-        this.ctx.fillRect(shape.x - barWidth/2, barY, barWidth, barHeight);
-        
-        // Health fill
-        const healthPercent = shape.health / shape.maxHealth;
-        this.ctx.fillStyle = '#FF6B6B';
-        this.ctx.fillRect(shape.x - barWidth/2, barY, barWidth * healthPercent, barHeight);
+      if (i === 0) {
+        this.ctx.moveTo(x, y);
+      } else {
+        this.ctx.lineTo(x, y);
       }
-    });
+    }
+    this.ctx.closePath();
+    this.ctx.fill();
+    this.ctx.stroke();
+    
+    this.ctx.restore();
   }
   
   drawProjectiles() {
@@ -699,16 +837,60 @@ class Game {
   
   drawParticles() {
     this.state.particles.forEach(particle => {
+      this.ctx.save();
+      
+      // Draw trail if enabled
+      if (particle.trail && particle.trailPositions.length > 0) {
+        this.ctx.strokeStyle = this.hexToRgba(particle.color, 0.3);
+        this.ctx.lineWidth = particle.size * 0.5;
+        this.ctx.beginPath();
+        particle.trailPositions.forEach((pos, i) => {
+          if (i === 0) {
+            this.ctx.moveTo(pos.x, pos.y);
+          } else {
+            this.ctx.lineTo(pos.x, pos.y);
+          }
+        });
+        this.ctx.stroke();
+      }
+      
+      // Set particle style
       this.ctx.globalAlpha = particle.lifetime;
-      this.ctx.fillStyle = particle.color;
-      this.ctx.fillRect(
-        particle.x - particle.size/2,
-        particle.y - particle.size/2,
-        particle.size,
-        particle.size
-      );
+      
+      // Apply glow effect for rare particles
+      if (particle.glow) {
+        this.ctx.shadowColor = particle.color;
+        this.ctx.shadowBlur = particle.size * 2;
+      }
+      
+      // Draw particle
+      if (particle.ring) {
+        // Ring particle
+        this.ctx.strokeStyle = particle.color;
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.arc(particle.x, particle.y, particle.size * 3, 0, Math.PI * 2);
+        this.ctx.stroke();
+      } else if (particle.sparkle) {
+        // Sparkle effect
+        this.ctx.fillStyle = particle.color;
+        const sparkleSize = particle.size * (1 + Math.random() * 0.5);
+        this.ctx.fillRect(
+          particle.x - sparkleSize/2,
+          particle.y - sparkleSize/2,
+          sparkleSize,
+          sparkleSize
+        );
+      } else {
+        // Normal particle
+        this.ctx.fillStyle = particle.color;
+        this.ctx.beginPath();
+        this.ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+        this.ctx.fill();
+      }
+      
+      this.ctx.restore();
     });
-    this.ctx.globalAlpha = 1;
   }
   
   drawMinimap() {
@@ -725,11 +907,23 @@ class Game {
     ctx.strokeRect(0, 0, 176, 176);
     
     // Draw shapes
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
     this.state.shapes.forEach(shape => {
       const x = shape.x * scale;
       const y = shape.y * scale;
-      ctx.fillRect(x - 1, y - 1, 2, 2);
+      
+      // Color based on rarity
+      if (shape.rarity === 'greenRadiant') {
+        ctx.fillStyle = '#00FF00';
+      } else if (shape.rarity === 'blueRadiant') {
+        ctx.fillStyle = '#00BFFF';
+      } else if (shape.rarity === 'shadow') {
+        ctx.fillStyle = '#8B00FF';
+      } else {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+      }
+      
+      const size = shape.rarity !== 'normal' ? 2 : 1;
+      ctx.fillRect(x - size/2, y - size/2, size, size);
     });
     
     // Draw player
@@ -750,8 +944,8 @@ class Game {
     ctx.strokeRect(viewX, viewY, viewW, viewH);
   }
   
+  // ==================== HELPER FUNCTIONS ====================
   darkenColor(color) {
-    // Simple color darkening for borders
     const hex = color.replace('#', '');
     const r = parseInt(hex.substr(0, 2), 16);
     const g = parseInt(hex.substr(2, 2), 16);
@@ -762,6 +956,13 @@ class Game {
     const darkerB = Math.floor(b * 0.7);
     
     return `rgb(${darkerR}, ${darkerG}, ${darkerB})`;
+  }
+  
+  hexToRgba(hex, alpha) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
   
   // ==================== GAME LOOP ====================
@@ -781,5 +982,7 @@ class Game {
 // ==================== START GAME ====================
 window.addEventListener('DOMContentLoaded', () => {
   const game = new Game();
-  console.log('Arras.io game started!');
+  console.log('🎮 Arras.io Enhanced Edition started!');
+  console.log('🌟 Rare shapes enabled: Green Radiant (1/100), Blue Radiant (1/500), Shadow (1/1000)');
+  console.log('🔧 Debug: Press G for Green Radiant, B for Blue Radiant, N for Shadow shape');
 });

@@ -1,7 +1,7 @@
 /**
  * Fixed Collision Detection System
  * Works with single-player game without server dependencies
- * Fixes the missing ShapeSystem integration issue
+ * Includes enhanced effects for rare shapes (Green Radiant, Blue Radiant, Shadow)
  */
 
 class CollisionSystem {
@@ -102,12 +102,18 @@ class CollisionSystem {
       };
       
       if (this.checkCircleCollision(playerObj, shapeObj)) {
+        // Increase damage for rare shapes
+        let damageMultiplier = 1;
+        if (shape.rarity === 'greenRadiant') damageMultiplier = 1.2;
+        else if (shape.rarity === 'blueRadiant') damageMultiplier = 1.5;
+        else if (shape.rarity === 'shadow') damageMultiplier = 2;
+        
         collisions.push({
           type: 'player-shape',
           player: player,
           shapeIndex: i,
           shape: shape,
-          damage: shape.damage || 5
+          damage: (shape.damage || 5) * damageMultiplier
         });
       }
     }
@@ -166,7 +172,9 @@ class CollisionSystem {
       handled: false,
       destroyed: false,
       damage: 0,
-      xpAwarded: 0
+      xpAwarded: 0,
+      rarity: 'normal',
+      shapeType: null
     };
     
     switch(collision.type) {
@@ -174,11 +182,18 @@ class CollisionSystem {
         // Apply damage to shape
         collision.shape.health -= collision.damage;
         result.damage = collision.damage;
+        result.rarity = collision.shape.rarity || 'normal';
+        result.shapeType = collision.shape.type;
         
         // Check if shape was destroyed
         if (collision.shape.health <= 0) {
           result.destroyed = true;
           result.xpAwarded = collision.shape.xp;
+          
+          // Log rare shape destruction
+          if (collision.shape.rarity && collision.shape.rarity !== 'normal') {
+            console.log(`💥 Destroyed ${collision.shape.rarity} ${collision.shape.type}! +${collision.shape.xp} points!`);
+          }
           
           // Remove the shape
           if (gameState && gameState.shapes) {
@@ -204,14 +219,19 @@ class CollisionSystem {
         if (gameState && gameState.player) {
           gameState.player.health -= collision.damage;
           result.damage = collision.damage;
+          result.rarity = collision.shape.rarity || 'normal';
           
-          // Push player away from shape
+          // Push player away from shape (stronger push for rare shapes)
+          const pushMultiplier = collision.shape.rarity === 'shadow' ? 2 : 
+                                collision.shape.rarity === 'blueRadiant' ? 1.5 : 
+                                collision.shape.rarity === 'greenRadiant' ? 1.2 : 1;
+          
           const dx = collision.player.x - collision.shape.x;
           const dy = collision.player.y - collision.shape.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
           
           if (distance > 0) {
-            const pushForce = 5;
+            const pushForce = 5 * pushMultiplier;
             collision.player.vx += (dx / distance) * pushForce;
             collision.player.vy += (dy / distance) * pushForce;
           }
@@ -262,6 +282,8 @@ class CollisionSystem {
         const result = this.processCollision(collision, gameState);
         
         if (result.handled) {
+          // Store shape info for particle effects
+          result.shape = collision.shape;
           results.push(result);
           
           // Award XP to player if shape was destroyed
@@ -283,6 +305,7 @@ class CollisionSystem {
       for (const collision of playerShapeCollisions) {
         const result = this.processCollision(collision, gameState);
         if (result.handled) {
+          result.shape = collision.shape;
           results.push(result);
         }
       }
@@ -292,7 +315,7 @@ class CollisionSystem {
   }
 
   /**
-   * Create particle effects for collisions
+   * Create particle effects for collisions with rare shape support
    * @param {Object} collision - Collision data
    * @param {Array} particles - Particles array to add to
    */
@@ -301,40 +324,171 @@ class CollisionSystem {
     
     switch(collision.type) {
       case 'projectile-shape':
-        // Create explosion particles
         const shape = collision.shape;
-        const particleCount = collision.destroyed ? 10 : 3;
+        if (!shape) return;
         
+        // Determine particle count and properties based on rarity
+        let particleCount = collision.destroyed ? 10 : 3;
+        let particleSpeed = 5;
+        let particleSize = { min: 2, max: 5 };
+        let glowEffect = false;
+        
+        if (shape.rarity === 'greenRadiant') {
+          particleCount = collision.destroyed ? 20 : 6;
+          particleSpeed = 7;
+          particleSize = { min: 3, max: 7 };
+          glowEffect = true;
+        } else if (shape.rarity === 'blueRadiant') {
+          particleCount = collision.destroyed ? 30 : 10;
+          particleSpeed = 9;
+          particleSize = { min: 4, max: 9 };
+          glowEffect = true;
+        } else if (shape.rarity === 'shadow') {
+          particleCount = collision.destroyed ? 40 : 15;
+          particleSpeed = 11;
+          particleSize = { min: 5, max: 11 };
+          glowEffect = true;
+        }
+        
+        // Create explosion particles
         for (let i = 0; i < particleCount; i++) {
-          particles.push({
+          const angle = (Math.PI * 2 * i) / particleCount + Math.random() * 0.5;
+          const speed = particleSpeed * (0.5 + Math.random() * 0.5);
+          
+          const particle = {
             x: shape.x,
             y: shape.y,
-            vx: (Math.random() - 0.5) * 5,
-            vy: (Math.random() - 0.5) * 5,
-            color: shape.color,
-            size: Math.random() * 5 + 2,
-            lifetime: 1
-          });
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            color: shape.particleColor || shape.color,
+            size: Math.random() * (particleSize.max - particleSize.min) + particleSize.min,
+            lifetime: 1,
+            glow: glowEffect,
+            rarity: shape.rarity,
+            fadeRate: shape.rarity === 'shadow' ? 0.01 : shape.rarity === 'blueRadiant' ? 0.015 : 0.02
+          };
+          
+          // Add special effects for rare shapes
+          if (shape.rarity === 'greenRadiant') {
+            particle.trail = true;
+            particle.pulseRate = 0.1;
+          } else if (shape.rarity === 'blueRadiant') {
+            particle.trail = true;
+            particle.sparkle = true;
+            particle.pulseRate = 0.08;
+          } else if (shape.rarity === 'shadow') {
+            particle.trail = true;
+            particle.shadowAura = true;
+            particle.spiralMotion = true;
+          }
+          
+          particles.push(particle);
+        }
+        
+        // Add extra burst effect for destroyed rare shapes
+        if (collision.destroyed && shape.rarity !== 'normal') {
+          // Create ring explosion
+          const ringParticles = 20;
+          for (let i = 0; i < ringParticles; i++) {
+            const angle = (Math.PI * 2 * i) / ringParticles;
+            particles.push({
+              x: shape.x,
+              y: shape.y,
+              vx: Math.cos(angle) * particleSpeed * 1.5,
+              vy: Math.sin(angle) * particleSpeed * 1.5,
+              color: shape.glowColor || shape.particleColor,
+              size: 2,
+              lifetime: 1,
+              glow: true,
+              ring: true,
+              fadeRate: 0.03
+            });
+          }
         }
         break;
         
       case 'player-shape':
-        // Create collision particles
-        const collisionX = (collision.player.x + collision.shape.x) / 2;
-        const collisionY = (collision.player.y + collision.shape.y) / 2;
+        // Create collision particles with enhanced effects for rare shapes
+        const collisionShape = collision.shape;
+        if (!collisionShape) return;
         
-        for (let i = 0; i < 5; i++) {
+        const collisionX = (collision.player.x + collisionShape.x) / 2;
+        const collisionY = (collision.player.y + collisionShape.y) / 2;
+        
+        let impactParticles = 5;
+        let impactColor = '#FF0000';
+        
+        if (collisionShape.rarity === 'greenRadiant') {
+          impactParticles = 8;
+          impactColor = '#FFFF00'; // Yellow impact
+        } else if (collisionShape.rarity === 'blueRadiant') {
+          impactParticles = 12;
+          impactColor = '#00FFFF'; // Cyan impact
+        } else if (collisionShape.rarity === 'shadow') {
+          impactParticles = 16;
+          impactColor = '#FF00FF'; // Magenta impact
+        }
+        
+        for (let i = 0; i < impactParticles; i++) {
           particles.push({
             x: collisionX,
             y: collisionY,
-            vx: (Math.random() - 0.5) * 3,
-            vy: (Math.random() - 0.5) * 3,
-            color: '#FF0000',
-            size: Math.random() * 3 + 1,
-            lifetime: 1
+            vx: (Math.random() - 0.5) * 6,
+            vy: (Math.random() - 0.5) * 6,
+            color: impactColor,
+            size: Math.random() * 4 + 1,
+            lifetime: 1,
+            glow: collisionShape.rarity !== 'normal',
+            fadeRate: 0.03
           });
         }
         break;
+    }
+  }
+
+  /**
+   * Update particle effects with enhanced behavior for rare particles
+   * @param {Array} particles - Array of particles to update
+   * @param {number} deltaTime - Time since last frame
+   */
+  updateParticles(particles, deltaTime) {
+    if (!particles) return;
+    
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const particle = particles[i];
+      
+      // Update position
+      particle.x += particle.vx;
+      particle.y += particle.vy;
+      
+      // Apply special motion effects
+      if (particle.spiralMotion) {
+        const angle = Math.atan2(particle.vy, particle.vx);
+        const speed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
+        const newAngle = angle + 0.1;
+        particle.vx = Math.cos(newAngle) * speed * 0.98;
+        particle.vy = Math.sin(newAngle) * speed * 0.98;
+      } else {
+        // Normal friction
+        particle.vx *= 0.98;
+        particle.vy *= 0.98;
+      }
+      
+      // Update lifetime
+      particle.lifetime -= particle.fadeRate || 0.02;
+      
+      // Update size (shrink over time)
+      particle.size *= 0.98;
+      
+      // Pulse effect for radiant particles
+      if (particle.pulseRate) {
+        particle.size *= (1 + Math.sin(Date.now() * particle.pulseRate) * 0.1);
+      }
+      
+      // Remove dead particles
+      if (particle.lifetime <= 0 || particle.size < 0.1) {
+        particles.splice(i, 1);
+      }
     }
   }
 
@@ -354,8 +508,9 @@ class CollisionSystem {
       const dy = position.y - player.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
       
-      // Don't spawn too close to player
-      if (distance < 200) return false;
+      // Don't spawn too close to player (extra distance for rare shapes)
+      const minDistance = radius > 40 ? 300 : 200; // Larger safe zone for big shapes
+      if (distance < minDistance) return false;
     }
     
     // Check distance from other shapes
@@ -372,6 +527,34 @@ class CollisionSystem {
     }
     
     return true;
+  }
+
+  /**
+   * Get damage multiplier based on shape rarity
+   * @param {string} rarity - Shape rarity type
+   * @returns {number} Damage multiplier
+   */
+  getRarityDamageMultiplier(rarity) {
+    switch(rarity) {
+      case 'greenRadiant': return 1.2;
+      case 'blueRadiant': return 1.5;
+      case 'shadow': return 2.0;
+      default: return 1.0;
+    }
+  }
+
+  /**
+   * Get score multiplier based on shape rarity
+   * @param {string} rarity - Shape rarity type
+   * @returns {Object} Score multiplier range {min, max}
+   */
+  getRarityScoreMultiplier(rarity) {
+    switch(rarity) {
+      case 'greenRadiant': return { min: 75, max: 150 };
+      case 'blueRadiant': return { min: 500, max: 1000 };
+      case 'shadow': return { min: 1000, max: 1500 };
+      default: return { min: 1, max: 1 };
+    }
   }
 }
 

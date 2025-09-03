@@ -13,46 +13,6 @@ class ShapeSystem {
     this.lastSpawnTime = Date.now();
     this.shapeIdCounter = 0;
     
-    // Rarity system configuration
-    this.rarityConfig = {
-      normal: {
-        chance: 1,
-        xpMultiplier: 1,
-        healthMultiplier: 1,
-        sizeMultiplier: 1,
-        glow: null,
-        particleColor: null,
-        name: 'Normal'
-      },
-      shiny: {
-        chance: 0.01, // 1 in 100
-        xpMultiplier: { min: 75, max: 150 },
-        healthMultiplier: 1.5,
-        sizeMultiplier: 1.1,
-        glow: '#FFD700', // Gold glow
-        particleColor: '#FFD700',
-        name: 'Shiny'
-      },
-      legendary: {
-        chance: 0.002, // 1 in 500
-        xpMultiplier: { min: 400, max: 750 },
-        healthMultiplier: 3,
-        sizeMultiplier: 1.3,
-        glow: '#00BFFF', // Blue shine
-        particleColor: '#00BFFF',
-        name: 'Legendary'
-      },
-      shadow: {
-        chance: 0.001, // 1 in 1000
-        xpMultiplier: { min: 800, max: 1200 },
-        healthMultiplier: 5,
-        sizeMultiplier: 1.5,
-        glow: '#8B00FF', // Purple shadow aura
-        particleColor: '#8B00FF',
-        name: 'Shadow'
-      }
-    };
-    
     // Shape type definitions with proper stats
     this.shapeTypes = {
       triangle: {
@@ -114,33 +74,7 @@ class ShapeSystem {
   }
   
   /**
-   * Determine rarity of a shape based on random chance
-   */
-  determineRarity() {
-    const roll = Math.random();
-    
-    // Check from rarest to most common
-    if (roll < this.rarityConfig.shadow.chance) {
-      return 'shadow';
-    } else if (roll < this.rarityConfig.legendary.chance) {
-      return 'legendary';
-    } else if (roll < this.rarityConfig.shiny.chance) {
-      return 'shiny';
-    }
-    
-    return 'normal';
-  }
-  
-  /**
-   * Get random multiplier value within range
-   */
-  getRandomMultiplier(range) {
-    if (typeof range === 'number') return range;
-    return Math.floor(Math.random() * (range.max - range.min + 1)) + range.min;
-  }
-  
-  /**
-   * Create a new shape with rarity system
+   * Create a new shape
    */
   createShape(type, x, y) {
     const config = this.shapeTypes[type];
@@ -149,50 +83,23 @@ class ShapeSystem {
       return null;
     }
     
-    // Determine rarity
-    const rarity = this.determineRarity();
-    const rarityConfig = this.rarityConfig[rarity];
-    
-    // Calculate XP multiplier for this specific shape
-    const xpMultiplier = this.getRandomMultiplier(rarityConfig.xpMultiplier);
-    
-    // Apply rarity modifiers
-    const baseXP = config.xp;
-    const modifiedXP = Math.floor(baseXP * xpMultiplier);
-    const modifiedHealth = Math.floor(config.health * rarityConfig.healthMultiplier);
-    const modifiedSize = Math.floor(config.size * rarityConfig.sizeMultiplier);
-    
-    // Log rare spawns
-    if (rarity !== 'normal') {
-      console.log(`🌟 ${rarityConfig.name} ${type} spawned! XP: ${modifiedXP}x (${xpMultiplier}x multiplier)`);
-    }
-    
     return {
       id: `shape_${this.shapeIdCounter++}`,
       type: type,
-      rarity: rarity,
       x: x,
       y: y,
       vx: (Math.random() - 0.5) * config.speed,
       vy: (Math.random() - 0.5) * config.speed,
-      size: modifiedSize,
-      baseSize: config.size,
+      size: config.size,
       sides: config.sides,
-      health: modifiedHealth,
-      maxHealth: modifiedHealth,
-      xp: modifiedXP,
-      baseXP: baseXP,
-      xpMultiplier: xpMultiplier,
+      health: config.health,
+      maxHealth: config.maxHealth,
+      xp: config.xp,
       color: config.color,
-      glowColor: rarityConfig.glow,
-      particleColor: rarityConfig.particleColor || config.color,
       damage: config.damage,
       angle: Math.random() * Math.PI * 2,
       rotationSpeed: (Math.random() - 0.5) * config.rotationSpeed,
-      speed: config.speed,
-      // Visual effects for rare variants
-      pulsePhase: Math.random() * Math.PI * 2,
-      glowIntensity: rarity === 'shadow' ? 30 : rarity === 'legendary' ? 20 : rarity === 'shiny' ? 15 : 0
+      speed: config.speed
     };
   }
   
@@ -271,11 +178,6 @@ class ShapeSystem {
       // Rotate shape
       shape.angle += shape.rotationSpeed;
       
-      // Update pulse effect for rare shapes
-      if (shape.rarity !== 'normal') {
-        shape.pulsePhase += 0.05;
-      }
-      
       // Bounce off world boundaries
       if (shape.x - shape.size < 0 || shape.x + shape.size > this.worldWidth) {
         shape.vx *= -1;
@@ -301,7 +203,7 @@ class ShapeSystem {
   }
   
   /**
-   * Damage a shape and return rewards
+   * Damage a shape
    */
   damageShape(shapeIndex, damage) {
     if (shapeIndex < 0 || shapeIndex >= this.shapes.length) return null;
@@ -310,27 +212,13 @@ class ShapeSystem {
     shape.health -= damage;
     
     if (shape.health <= 0) {
-      // Shape destroyed - return XP value and rarity info
+      // Shape destroyed - return XP value
       const xp = shape.xp;
-      const rarity = shape.rarity;
-      
-      // Log destruction of rare shapes
-      if (rarity !== 'normal') {
-        console.log(`💀 ${this.rarityConfig[rarity].name} ${shape.type} destroyed! Awarded ${xp} XP!`);
-      }
-      
       this.shapes.splice(shapeIndex, 1);
-      return { 
-        destroyed: true, 
-        xp: xp, 
-        type: shape.type,
-        rarity: rarity,
-        xpMultiplier: shape.xpMultiplier,
-        particleColor: shape.particleColor
-      };
+      return { destroyed: true, xp: xp, type: shape.type };
     }
     
-    return { destroyed: false, xp: 0, type: shape.type, rarity: shape.rarity };
+    return { destroyed: false, xp: 0, type: shape.type };
   }
   
   /**
@@ -440,6 +328,12 @@ class ShapeSystem {
     }
     
     return shape;
+  }
+  /**
+   * Set spawn rate
+   */
+  setSpawnRate(rate) {
+    this.spawnRate = rate;
   }
 }
 
