@@ -1,7 +1,7 @@
 /**
  * Enhanced Shape System - Complete shape management for Arras.io
- * Handles spawning, updating, and managing all shapes including rare variants
- * Now includes: Green Radiant, Blue Radiant, and Shadow shapes!
+ * NOW INCLUDES: Rainbow (1/5000) and Transgender (1/50000) ultra-rare shapes!
+ * Features growing rainbow effects and transgender pride colors with massive rewards
  */
 
 class ShapeSystem {
@@ -66,44 +66,99 @@ class ShapeSystem {
       }
     };
 
-    // Rare shape multipliers and properties
+    // Enhanced rarity system with new ultra-rare shapes!
     this.rarityConfigs = {
       normal: {
-        multiplier: { health: 1, xp: 1, damage: 1 },
-        probability: 0.97, // 97% normal
+        multiplier: { health: 1, xp: 1, damage: 1, size: 1 },
+        probability: 0.96998, // Adjusted to accommodate new rarities
         glowColor: null,
         hasGlow: false,
         hasRadiance: false,
-        hasShadowAura: false
+        hasShadowAura: false,
+        hasRainbowEffect: false,
+        hasTransgenderEffect: false
       },
       greenRadiant: {
-        multiplier: { health: 2, xp: 5, damage: 1.5 },
+        multiplier: { health: 2, xp: 5, damage: 1.5, size: 1 },
         probability: 0.02, // 2% (1 in 50)
         glowColor: '#00FF00',
         hasGlow: true,
         hasRadiance: true,
         hasShadowAura: false,
+        hasRainbowEffect: false,
+        hasTransgenderEffect: false,
         pulseSpeed: 0.1
       },
       blueRadiant: {
-        multiplier: { health: 4, xp: 15, damage: 2 },
+        multiplier: { health: 4, xp: 15, damage: 2, size: 1 },
         probability: 0.008, // 0.8% (1 in 125)
         glowColor: '#00BFFF',
         hasGlow: true,
         hasRadiance: true,
         hasShadowAura: false,
+        hasRainbowEffect: false,
+        hasTransgenderEffect: false,
         pulseSpeed: 0.08
       },
       shadow: {
-        multiplier: { health: 8, xp: 30, damage: 3 },
+        multiplier: { health: 8, xp: 30, damage: 3, size: 1 },
         probability: 0.002, // 0.2% (1 in 500)
         glowColor: '#8B00FF',
         hasGlow: true,
         hasRadiance: false,
         hasShadowAura: true,
+        hasRainbowEffect: false,
+        hasTransgenderEffect: false,
         pulseSpeed: 0.05
+      },
+      // 🌈 NEW: Rainbow Shape - Ultra Rare!
+      rainbow: {
+        multiplier: { health: 15, xp: 750, damage: 5, size: 1.3 }, // XP 7500-15000 range
+        probability: 0.0002, // 0.02% (1 in 5000)
+        glowColor: '#FF0080', // Pink base glow
+        hasGlow: true,
+        hasRadiance: true,
+        hasShadowAura: false,
+        hasRainbowEffect: true,
+        hasTransgenderEffect: false,
+        pulseSpeed: 0.03,
+        growthRate: 0.005, // Growing rainbow effect!
+        maxGrowth: 1.5
+      },
+      // 🏳️‍⚧️ NEW: Transgender Shape - Legendary Rare!
+      transgender: {
+        multiplier: { health: 30, xp: 3500, damage: 10, size: 1.5 }, // XP 175000-350000 range
+        probability: 0.00002, // 0.002% (1 in 50000)
+        glowColor: '#55CDFC', // Trans blue
+        hasGlow: true,
+        hasRadiance: true,
+        hasShadowAura: true,
+        hasRainbowEffect: false,
+        hasTransgenderEffect: true,
+        pulseSpeed: 0.02,
+        colorCycleSpeed: 0.1 // Cycles through trans pride colors
       }
     };
+
+    // Rainbow color cycle for rainbow shapes
+    this.rainbowColors = [
+      '#FF0000', // Red
+      '#FF8000', // Orange
+      '#FFFF00', // Yellow
+      '#00FF00', // Green
+      '#0080FF', // Blue
+      '#8000FF', // Purple
+      '#FF0080'  // Pink
+    ];
+
+    // Transgender pride colors
+    this.transgenderColors = [
+      '#55CDFC', // Light blue
+      '#F7A8B8', // Pink
+      '#FFFFFF', // White
+      '#F7A8B8', // Pink
+      '#55CDFC'  // Light blue
+    ];
   }
   
   /**
@@ -111,8 +166,14 @@ class ShapeSystem {
    */
   initialize(playerPosition) {
     this.shapes = [];
-    console.log('🎲 ShapeSystem initialized with rare shapes!');
-    console.log('📊 Spawn rates: Normal 97%, Green Radiant 2%, Blue Radiant 0.8%, Shadow 0.2%');
+    console.log('🎲 ShapeSystem initialized with ULTRA-RARE shapes!');
+    console.log('📊 Spawn rates:');
+    console.log('   Normal: 96.998%');
+    console.log('   Green Radiant: 2% (1/50)');
+    console.log('   Blue Radiant: 0.8% (1/125)');
+    console.log('   Shadow: 0.2% (1/500)');
+    console.log('   🌈 Rainbow: 0.02% (1/5000) - GROWING RAINBOW!');
+    console.log('   🏳️‍⚧️ Transgender: 0.002% (1/50000) - LEGENDARY!');
     
     // Spawn initial shapes
     for (let i = 0; i < Math.min(50, this.maxShapes); i++) {
@@ -127,8 +188,8 @@ class ShapeSystem {
     const roll = Math.random();
     let cumulativeProbability = 0;
     
-    // Check rarity in order of rarity (most common first)
-    const rarities = ['normal', 'greenRadiant', 'blueRadiant', 'shadow'];
+    // Check rarity in order from most rare to most common
+    const rarities = ['transgender', 'rainbow', 'shadow', 'blueRadiant', 'greenRadiant', 'normal'];
     
     for (const rarity of rarities) {
       cumulativeProbability += this.rarityConfigs[rarity].probability;
@@ -141,7 +202,7 @@ class ShapeSystem {
   }
   
   /**
-   * Create a shape with rarity system
+   * Create a shape with enhanced rarity system
    */
   createShape(type, x, y, forcedRarity = null) {
     const config = this.shapeTypes[type];
@@ -158,6 +219,7 @@ class ShapeSystem {
     const health = Math.floor(config.health * rarityConfig.multiplier.health);
     const xp = Math.floor(config.xp * rarityConfig.multiplier.xp);
     const damage = Math.floor(config.damage * rarityConfig.multiplier.damage);
+    const size = Math.floor(config.size * rarityConfig.multiplier.size);
     
     // Determine colors based on rarity
     let shapeColor = config.color;
@@ -172,6 +234,14 @@ class ShapeSystem {
     } else if (rarity === 'shadow') {
       shapeColor = this.darkenColor(config.color, 50);
       particleColor = '#8B00FF';
+    } else if (rarity === 'rainbow') {
+      // Rainbow starts with red but will cycle through all colors
+      shapeColor = '#FF0000';
+      particleColor = '#FF0080';
+    } else if (rarity === 'transgender') {
+      // Transgender starts with light blue
+      shapeColor = '#55CDFC';
+      particleColor = '#F7A8B8';
     }
     
     const shape = {
@@ -182,7 +252,7 @@ class ShapeSystem {
       y: y,
       vx: (Math.random() - 0.5) * config.speed,
       vy: (Math.random() - 0.5) * config.speed,
-      size: config.size * (rarity === 'shadow' ? 1.2 : rarity === 'blueRadiant' ? 1.1 : 1),
+      size: size,
       sides: config.sides,
       health: health,
       maxHealth: health,
@@ -195,16 +265,41 @@ class ShapeSystem {
       rotationSpeed: (Math.random() - 0.5) * config.rotationSpeed,
       speed: config.speed,
       
-      // Rare shape properties
+      // Enhanced rare shape properties
       hasGlow: rarityConfig.hasGlow,
       hasRadiance: rarityConfig.hasRadiance,
       hasShadowAura: rarityConfig.hasShadowAura,
+      hasRainbowEffect: rarityConfig.hasRainbowEffect,
+      hasTransgenderEffect: rarityConfig.hasTransgenderEffect,
       pulseSpeed: rarityConfig.pulseSpeed || 0,
-      pulsePhase: Math.random() * Math.PI * 2
+      pulsePhase: Math.random() * Math.PI * 2,
+      
+      // Rainbow-specific properties
+      rainbowPhase: 0,
+      rainbowColorIndex: 0,
+      growthPhase: 0,
+      currentGrowth: 1,
+      
+      // Transgender-specific properties
+      transgenderColorIndex: 0,
+      transgenderPhase: 0,
+      
+      // Creation time for special effects
+      createdAt: Date.now()
     };
     
-    // Log rare shape spawns
-    if (rarity !== 'normal') {
+    // Log rare shape spawns with excitement!
+    if (rarity === 'rainbow') {
+      console.log(`🌈✨ RAINBOW ${type.toUpperCase()} SPAWNED! ✨🌈`);
+      console.log(`📍 Location: (${Math.round(x)}, ${Math.round(y)})`);
+      console.log(`💰 Worth: ${xp} XP (${xp * 10} score!)`);
+      console.log(`🎯 This is a 1 in 5000 spawn!`);
+    } else if (rarity === 'transgender') {
+      console.log(`🏳️‍⚧️💎 TRANSGENDER ${type.toUpperCase()} - LEGENDARY! 💎🏳️‍⚧️`);
+      console.log(`📍 Location: (${Math.round(x)}, ${Math.round(y)})`);
+      console.log(`💰 Worth: ${xp} XP (${xp * 10} score!)`);
+      console.log(`🌟 This is a 1 in 50,000 spawn - you're incredibly lucky!`);
+    } else if (rarity !== 'normal') {
       console.log(`✨ Spawned ${rarity} ${type} at (${Math.round(x)}, ${Math.round(y)}) - ${xp} XP!`);
     }
     
@@ -234,7 +329,7 @@ class ShapeSystem {
     
     const type = types[typeIndex];
     
-    // Find safe spawn location
+    // Find safe spawn location (further for ultra-rare shapes)
     let x, y;
     let attempts = 0;
     const minDistance = 300;
@@ -268,7 +363,7 @@ class ShapeSystem {
     // Find safe spawn location (further away for rare shapes)
     let x, y;
     let attempts = 0;
-    const minDistance = 500;
+    const minDistance = rarity === 'transgender' ? 800 : rarity === 'rainbow' ? 600 : 500;
     
     do {
       x = Math.random() * this.worldWidth;
@@ -292,7 +387,7 @@ class ShapeSystem {
   }
   
   /**
-   * Update all shapes
+   * Update all shapes with enhanced visual effects
    */
   update(deltaTime, playerPosition) {
     const now = Date.now();
@@ -316,9 +411,42 @@ class ShapeSystem {
       // Rotate shape
       shape.angle += shape.rotationSpeed;
       
-      // Update pulse phase for rare shapes
+      // Update pulse phase for all rare shapes
       if (shape.pulseSpeed > 0) {
         shape.pulsePhase += shape.pulseSpeed;
+      }
+      
+      // 🌈 RAINBOW SHAPE SPECIAL EFFECTS
+      if (shape.hasRainbowEffect) {
+        // Cycle through rainbow colors
+        shape.rainbowPhase += 0.05;
+        const colorIndex = Math.floor(shape.rainbowPhase) % this.rainbowColors.length;
+        shape.color = this.rainbowColors[colorIndex];
+        shape.particleColor = this.rainbowColors[(colorIndex + 1) % this.rainbowColors.length];
+        
+        // Growing effect - rainbow shapes grow and shrink
+        shape.growthPhase += shape.growthRate || 0.005;
+        const growthMultiplier = 1 + Math.sin(shape.growthPhase) * 0.2; // ±20% size variation
+        shape.currentGrowth = growthMultiplier;
+        
+        // Enhanced glow that pulses with colors
+        shape.glowColor = this.rainbowColors[Math.floor(shape.rainbowPhase * 2) % this.rainbowColors.length];
+      }
+      
+      // 🏳️‍⚧️ TRANSGENDER SHAPE SPECIAL EFFECTS
+      if (shape.hasTransgenderEffect) {
+        // Cycle through transgender pride colors
+        shape.transgenderPhase += shape.colorCycleSpeed || 0.1;
+        const colorIndex = Math.floor(shape.transgenderPhase) % this.transgenderColors.length;
+        shape.color = this.transgenderColors[colorIndex];
+        shape.particleColor = this.transgenderColors[(colorIndex + 2) % this.transgenderColors.length];
+        
+        // Special glow effect that alternates between blue and pink
+        const glowIndex = Math.floor(shape.transgenderPhase * 0.5) % 2;
+        shape.glowColor = glowIndex === 0 ? '#55CDFC' : '#F7A8B8';
+        
+        // Ultra-intense pulse for legendary status
+        shape.currentGrowth = 1 + Math.sin(shape.pulsePhase) * 0.15;
       }
       
       // Bounce off world boundaries
@@ -346,39 +474,76 @@ class ShapeSystem {
   }
   
   /**
-   * Get visual properties for rendering (includes rare shape effects)
+   * Get enhanced visual properties for rendering (with new ultra-rare effects)
    */
   getShapeVisualProperties(shape) {
     const props = {
       baseColor: shape.color,
       strokeWidth: 2,
       pulseAmount: 1,
-      shadowBlur: 0
+      shadowBlur: 0,
+      currentSize: shape.size
     };
     
     if (shape.rarity !== 'normal') {
       // Enhanced visuals for rare shapes
-      props.strokeWidth = 3;
+      props.strokeWidth = shape.rarity === 'transgender' ? 6 : shape.rarity === 'rainbow' ? 5 : 3;
+      
+      // Apply growth effects
+      if (shape.currentGrowth) {
+        props.currentSize = shape.size * shape.currentGrowth;
+        props.pulseAmount = shape.currentGrowth;
+      }
       
       // Pulsing effect
       if (shape.pulseSpeed > 0) {
         const pulseIntensity = Math.sin(shape.pulsePhase) * 0.1 + 1;
-        props.pulseAmount = pulseIntensity;
+        props.pulseAmount *= pulseIntensity;
       }
       
-      // Glow effects
+      // Enhanced glow effects
       if (shape.hasGlow) {
-        props.shadowBlur = 15 + Math.sin(Date.now() * 0.01) * 5;
+        let baseGlow = 15;
+        if (shape.rarity === 'rainbow') baseGlow = 35;
+        else if (shape.rarity === 'transgender') baseGlow = 50;
+        
+        props.shadowBlur = baseGlow + Math.sin(Date.now() * 0.01) * 10;
       }
       
-      // Special color modifications for rare shapes
-      if (shape.rarity === 'greenRadiant') {
-        props.shadowBlur = 20;
-      } else if (shape.rarity === 'blueRadiant') {
-        props.shadowBlur = 25;
-      } else if (shape.rarity === 'shadow') {
-        props.shadowBlur = 30;
-        props.baseColor = this.adjustColorAlpha(shape.color, 0.9);
+      // Rainbow-specific effects
+      if (shape.hasRainbowEffect) {
+        props.shadowBlur = 40 + Math.sin(shape.rainbowPhase) * 15;
+        // Rainbow shapes get a multi-color glow
+        props.rainbowGlow = true;
+      }
+      
+      // Transgender-specific effects
+      if (shape.hasTransgenderEffect) {
+        props.shadowBlur = 60 + Math.sin(shape.pulsePhase) * 20;
+        // Transgender shapes get an intense pride glow
+        props.transgenderGlow = true;
+        props.strokeWidth = 8; // Extra thick border for legendary status
+      }
+      
+      // Shadow effects
+      if (shape.rarity === 'shadow') {
+        const distToPlayer = shape.distanceToPlayer || 1000;
+        const maxVisibilityDistance = 400;
+        const safeDistance = 100;
+        
+        let alpha;
+        if (distToPlayer <= safeDistance) {
+          alpha = 1;
+        } else if (distToPlayer >= maxVisibilityDistance) {
+          alpha = 0.05;
+        } else {
+          const fadeRange = maxVisibilityDistance - safeDistance;
+          const fadeProgress = (distToPlayer - safeDistance) / fadeRange;
+          const smoothFade = 1 - Math.pow(fadeProgress, 0.5);
+          alpha = Math.max(0.05, smoothFade * 0.95 + 0.05);
+        }
+        
+        props.baseColor = this.adjustColorAlpha(shape.color, alpha);
       }
     }
     
@@ -386,7 +551,7 @@ class ShapeSystem {
   }
   
   /**
-   * Damage a shape and handle destruction
+   * Damage a shape and handle destruction with enhanced rewards
    */
   damageShape(shapeIndex, damage) {
     if (shapeIndex < 0 || shapeIndex >= this.shapes.length) return null;
@@ -403,8 +568,16 @@ class ShapeSystem {
         shape: shape // Include shape for particle effects
       };
       
-      // Log rare shape destruction
-      if (shape.rarity !== 'normal') {
+      // Special destruction messages for ultra-rare shapes
+      if (shape.rarity === 'rainbow') {
+        console.log(`🌈💥 RAINBOW ${shape.type.toUpperCase()} DESTROYED! 💥🌈`);
+        console.log(`💰 MASSIVE REWARD: ${shape.xp} XP (${shape.xp * 10} score points!)`);
+        console.log(`🎉 Congratulations on finding this 1/5000 rarity!`);
+      } else if (shape.rarity === 'transgender') {
+        console.log(`🏳️‍⚧️💎 TRANSGENDER ${shape.type.toUpperCase()} DESTROYED - LEGENDARY! 💎🏳️‍⚧️`);
+        console.log(`💰 ULTIMATE REWARD: ${shape.xp} XP (${shape.xp * 10} score points!)`);
+        console.log(`🌟 You just destroyed a 1/50,000 legendary shape! You're amazing!`);
+      } else if (shape.rarity !== 'normal') {
         console.log(`💥 Destroyed ${shape.rarity} ${shape.type}! Awarded ${shape.xp} XP!`);
       }
       
@@ -442,7 +615,7 @@ class ShapeSystem {
   }
   
   /**
-   * Get statistics about current shapes including rarity breakdown
+   * Get statistics about current shapes including new ultra-rare breakdown
    */
   getStatistics() {
     const stats = {
@@ -451,6 +624,8 @@ class ShapeSystem {
       greenRadiant: 0,
       blueRadiant: 0,
       shadow: 0,
+      rainbow: 0,
+      transgender: 0,
       byType: {
         triangle: 0,
         square: 0,
