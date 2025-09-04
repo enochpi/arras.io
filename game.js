@@ -6,8 +6,8 @@
 
 // ==================== GAME CONFIGURATION ====================
 const CONFIG = {
-  WORLD_WIDTH: 30000,
-  WORLD_HEIGHT: 30000,
+  WORLD_WIDTH: 50000,
+  WORLD_HEIGHT: 50000,
   GRID_SIZE: 50,
   PLAYER_SIZE: 30,
   PLAYER_SPEED: 5,
@@ -18,8 +18,8 @@ const CONFIG = {
   BULLET_DAMAGE: 20,
   FIRE_RATE: 200,
   BULLET_LIFETIME: 7000,
-  MAX_SHAPES: 500,
-  SHAPE_SPAWN_RATE: 200,
+  MAX_SHAPES: 50000,
+  SHAPE_SPAWN_RATE: 10,
   MAX_PARTICLES: 200 // BUG FIX: Prevent memory leaks
 };
 
@@ -757,432 +757,739 @@ class Game {
   }
   
   // BUG FIX: Optimized shape rendering with proper error handling
-  drawEnhancedShape(shape, distToPlayer) {
-    this.ctx.save();
-    this.ctx.translate(shape.x, shape.y);
-    
-    // Get visual properties safely
-    let visualProps = { baseColor: shape.color, strokeWidth: 2, pulseAmount: 1, currentSize: shape.size };
-    
-    if (this.state.shapeSystem?.getShapeVisualProperties) {
-      try {
-        visualProps = this.state.shapeSystem.getShapeVisualProperties(shape);
-      } catch (error) {
-        console.warn('Error getting visual properties, using defaults');
-      }
-    }
-    
-    // BUG FIX: Optimized rare shape effects with performance limits
-    if (shape.rarity === 'rainbow') {
-      this.drawRainbowEffects(visualProps);
-    } else if (shape.rarity === 'transgender') {
-      this.drawTransgenderEffects(visualProps);
-    } else if (shape.rarity === 'greenRadiant') {
-      this.drawGreenRadiantEffects(visualProps);
-    } else if (shape.rarity === 'blueRadiant') {
-      this.drawBlueRadiantEffects(visualProps);
-    } else if (shape.rarity === 'shadow') {
-      this.drawShadowEffects(shape, visualProps, distToPlayer);
-    }
-    
-    // Draw main shape
-    this.ctx.rotate(shape.angle || 0);
-    const renderSize = visualProps.currentSize * visualProps.pulseAmount;
-    
-    this.ctx.fillStyle = visualProps.baseColor || shape.color;
-    this.ctx.strokeStyle = this.darkenColor(visualProps.baseColor || shape.color);
-    this.ctx.lineWidth = visualProps.strokeWidth;
-    
-    this.drawShapeOutline(shape, renderSize);
-    this.ctx.fill();
-    this.ctx.stroke();
-    
-    // Reset effects
-    this.ctx.shadowBlur = 0;
-    this.ctx.shadowColor = 'transparent';
-    
-    this.ctx.restore();
-    
-    // Health bar for damaged shapes
-    if (shape.health < (shape.maxHealth || shape.health) && 
-        !(shape.rarity === 'shadow' && distToPlayer > 200)) {
-      this.drawShapeHealthBar(shape, renderSize);
-    }
+/**
+ * Enhanced Shape Visual Effects System
+ * Adds spectacular visual effects for rare shapes
+ */
+
+// Enhanced shape rendering with epic visual effects
+function drawEnhancedShape(ctx, shape, distToPlayer) {
+  ctx.save();
+  ctx.translate(shape.x, shape.y);
+  
+  // Apply rarity-specific visual enhancements
+  switch(shape.rarity) {
+    case 'greenRadiant':
+      drawGreenRadiantEffects(ctx, shape);
+      break;
+    case 'blueRadiant':
+      drawBlueRadiantEffects(ctx, shape);
+      break;
+    case 'shadow':
+      drawShadowEffects(ctx, shape, distToPlayer);
+      break;
+    case 'rainbow':
+      drawRainbowEffects(ctx, shape);
+      break;
+    case 'transgender':
+      drawTransgenderEffects(ctx, shape);
+      break;
   }
   
-  // BUG FIX: Simplified rainbow effects for better performance
-  drawRainbowEffects(visualProps) {
-    const time = Date.now() * 0.001;
-    
-    // Simplified rainbow aura (reduced from 5 to 3 layers)
-    for (let i = 0; i < 3; i++) {
-      const auraRadius = (visualProps.currentSize + i * 20) * visualProps.pulseAmount;
-      const alpha = (0.4 - i * 0.1) * Math.sin(time * 2 + i) * 0.5 + 0.2;
-      
-      const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, auraRadius);
-      const hue = (time * 100 + i * 60) % 360;
-      
-      gradient.addColorStop(0, `hsla(${hue}, 100%, 60%, ${alpha})`);
-      gradient.addColorStop(1, `hsla(${hue}, 100%, 60%, 0)`);
-      
-      this.ctx.fillStyle = gradient;
-      this.ctx.beginPath();
-      this.ctx.arc(0, 0, auraRadius, 0, Math.PI * 2);
-      this.ctx.fill();
-    }
-    
-    // Simplified sparkles (reduced from 20 to 8)
-    for (let i = 0; i < 8; i++) {
-      const angle = (i / 8) * Math.PI * 2 + time;
-      const distance = visualProps.currentSize * 2 + Math.sin(time * 3 + i) * 20;
-      const sparkleX = Math.cos(angle) * distance;
-      const sparkleY = Math.sin(angle) * distance;
-      const hue = (time * 50 + i * 45) % 360;
-      
-      this.ctx.fillStyle = `hsl(${hue}, 100%, 70%)`;
-      this.ctx.beginPath();
-      this.ctx.arc(sparkleX, sparkleY, 2, 0, Math.PI * 2);
-      this.ctx.fill();
-    }
-    
-    this.ctx.shadowColor = '#FF00FF';
-    this.ctx.shadowBlur = 30;
-  }
+  // Draw main shape with enhanced styling
+  ctx.rotate(shape.angle || 0);
+  drawMainShape(ctx, shape);
   
-  // BUG FIX: Simplified transgender effects
-  drawTransgenderEffects(visualProps) {
-    const time = Date.now() * 0.001;
-    const transColors = ['#55CDFC', '#F7A8B8', '#FFFFFF'];
-    
-    // Simplified pride auras (reduced complexity)
-    for (let i = 0; i < transColors.length; i++) {
-      const auraRadius = (visualProps.currentSize + i * 25) * visualProps.pulseAmount;
-      const alpha = (0.5 - i * 0.15) * Math.sin(time * 1.5 + i) * 0.3 + 0.3;
-      
-      const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, auraRadius);
-      gradient.addColorStop(0, this.hexToRgba(transColors[i], alpha));
-      gradient.addColorStop(1, this.hexToRgba(transColors[i], 0));
-      
-      this.ctx.fillStyle = gradient;
-      this.ctx.beginPath();
-      this.ctx.arc(0, 0, auraRadius, 0, Math.PI * 2);
-      this.ctx.fill();
-    }
-    
-    // Simplified hearts (reduced from 8 to 4)
-    for (let i = 0; i < 4; i++) {
-      const heartAngle = (i / 4) * Math.PI * 2 + time;
-      const heartDistance = visualProps.currentSize * 2.5 + Math.sin(time * 2 + i) * 20;
-      const heartX = Math.cos(heartAngle) * heartDistance;
-      const heartY = Math.sin(heartAngle) * heartDistance;
-      
-      this.ctx.fillStyle = '#FF69B4';
-      this.ctx.beginPath();
-      this.ctx.arc(heartX, heartY, 4, 0, Math.PI * 2);
-      this.ctx.fill();
-    }
-    
-    this.ctx.shadowColor = '#55CDFC';
-    this.ctx.shadowBlur = 40;
-  }
+  ctx.restore();
   
-  drawGreenRadiantEffects(visualProps) {
-    const pulse = Math.sin(Date.now() * 0.005) * 0.3 + 0.7;
-    this.ctx.shadowColor = '#00FF00';
-    this.ctx.shadowBlur = 20 * pulse;
+  // Draw floating particles around rare shapes
+  if (shape.rarity !== 'normal') {
+    drawFloatingParticles(ctx, shape);
+  }
+}
+
+// Green Radiant - Enhanced pulsing glow
+function drawGreenRadiantEffects(ctx, shape) {
+  const time = Date.now() * 0.005;
+  const pulse = Math.sin(time) * 0.3 + 0.7;
+  
+  // Multiple glow layers for intensity
+  for (let i = 0; i < 4; i++) {
+    const radius = (shape.size + i * 15) * pulse;
+    const alpha = (0.6 - i * 0.1) * pulse;
     
-    const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, visualProps.currentSize * 2);
-    gradient.addColorStop(0, `rgba(0, 255, 0, ${0.3 * pulse})`);
+    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
+    gradient.addColorStop(0, `rgba(0, 255, 0, ${alpha})`);
+    gradient.addColorStop(0.5, `rgba(50, 255, 50, ${alpha * 0.5})`);
     gradient.addColorStop(1, 'rgba(0, 255, 0, 0)');
     
-    this.ctx.fillStyle = gradient;
-    this.ctx.beginPath();
-    this.ctx.arc(0, 0, visualProps.currentSize * 2, 0, Math.PI * 2);
-    this.ctx.fill();
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+    ctx.fill();
   }
   
-  drawBlueRadiantEffects(visualProps) {
-    const pulse = Math.sin(Date.now() * 0.008) * 0.4 + 0.6;
-    this.ctx.shadowColor = '#00BFFF';
-    this.ctx.shadowBlur = 25 * pulse;
+  // Add sparkle effects
+  for (let i = 0; i < 8; i++) {
+    const sparkleAngle = (i / 8) * Math.PI * 2 + time;
+    const sparkleDistance = shape.size * 1.5 + Math.sin(time * 2 + i) * 10;
+    const sparkleX = Math.cos(sparkleAngle) * sparkleDistance;
+    const sparkleY = Math.sin(sparkleAngle) * sparkleDistance;
     
-    const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, visualProps.currentSize * 2.2);
-    gradient.addColorStop(0, `rgba(0, 191, 255, ${0.4 * pulse})`);
+    ctx.fillStyle = `rgba(0, 255, 0, ${Math.sin(time * 3 + i) * 0.5 + 0.5})`;
+    ctx.beginPath();
+    ctx.arc(sparkleX, sparkleY, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  ctx.shadowColor = '#00FF00';
+  ctx.shadowBlur = 25 * pulse;
+}
+
+// Blue Radiant - Crystalline energy effect
+function drawBlueRadiantEffects(ctx, shape) {
+  const time = Date.now() * 0.008;
+  const pulse = Math.sin(time) * 0.4 + 0.6;
+  
+  // Crystal energy rings
+  for (let i = 0; i < 5; i++) {
+    const radius = (shape.size + i * 20) * pulse;
+    const alpha = (0.8 - i * 0.15) * pulse;
+    
+    ctx.strokeStyle = `rgba(0, 191, 255, ${alpha})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  
+  // Energy bolts
+  for (let i = 0; i < 6; i++) {
+    const boltAngle = (i / 6) * Math.PI * 2 + time;
+    const boltLength = shape.size * 2;
+    const startX = Math.cos(boltAngle) * shape.size;
+    const startY = Math.sin(boltAngle) * shape.size;
+    const endX = Math.cos(boltAngle) * boltLength;
+    const endY = Math.sin(boltAngle) * boltLength;
+    
+    const gradient = ctx.createLinearGradient(startX, startY, endX, endY);
+    gradient.addColorStop(0, 'rgba(0, 191, 255, 0.8)');
     gradient.addColorStop(1, 'rgba(0, 191, 255, 0)');
     
-    this.ctx.fillStyle = gradient;
-    this.ctx.beginPath();
-    this.ctx.arc(0, 0, visualProps.currentSize * 2.2, 0, Math.PI * 2);
-    this.ctx.fill();
+    ctx.strokeStyle = gradient;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.lineTo(endX, endY);
+    ctx.stroke();
   }
   
-  drawShadowEffects(shape, visualProps, distToPlayer) {
-    const maxDistance = 400, safeDistance = 100;
-    let alpha = 1;
-    
-    if (distToPlayer > safeDistance) {
-      if (distToPlayer >= maxDistance) {
-        alpha = 0.05;
-      } else {
-        const fadeProgress = (distToPlayer - safeDistance) / (maxDistance - safeDistance);
-        alpha = Math.max(0.05, 1 - Math.pow(fadeProgress, 0.5));
-      }
+  ctx.shadowColor = '#00BFFF';
+  ctx.shadowBlur = 30 * pulse;
+}
+
+// Shadow - Ethereal fade effect
+function drawShadowEffects(ctx, shape, distToPlayer) {
+  const maxDistance = 400;
+  const safeDistance = 100;
+  let alpha = 1;
+  
+  if (distToPlayer > safeDistance) {
+    if (distToPlayer >= maxDistance) {
+      alpha = 0.05;
+    } else {
+      const fadeProgress = (distToPlayer - safeDistance) / (maxDistance - safeDistance);
+      alpha = Math.max(0.05, 1 - Math.pow(fadeProgress, 0.5));
     }
+  }
+  
+  // Ethereal aura
+  const time = Date.now() * 0.003;
+  for (let i = 0; i < 3; i++) {
+    const radius = (shape.size + i * 25) * (Math.sin(time + i) * 0.2 + 1);
+    const auraAlpha = alpha * (0.5 - i * 0.15);
     
-    this.ctx.shadowColor = '#8B00FF';
-    this.ctx.shadowBlur = 15 * alpha;
-    
-    const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, visualProps.currentSize * 1.5);
-    gradient.addColorStop(0, `rgba(139, 0, 255, ${0.2 * alpha})`);
+    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
+    gradient.addColorStop(0, `rgba(139, 0, 255, ${auraAlpha})`);
+    gradient.addColorStop(0.7, `rgba(75, 0, 130, ${auraAlpha * 0.5})`);
     gradient.addColorStop(1, 'rgba(139, 0, 255, 0)');
     
-    this.ctx.fillStyle = gradient;
-    this.ctx.beginPath();
-    this.ctx.arc(0, 0, visualProps.currentSize * 1.5, 0, Math.PI * 2);
-    this.ctx.fill();
-    
-    visualProps.baseColor = `rgba(50, 0, 100, ${Math.max(0.1, alpha)})`;
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+    ctx.fill();
   }
   
-  drawShapeHealthBar(shape, renderSize) {
-    const barWidth = renderSize * 1.5;
-    const barHeight = 4;
-    const barY = shape.y - renderSize - 12;
-    const healthPercent = shape.health / (shape.maxHealth || shape.health);
+  ctx.shadowColor = '#8B00FF';
+  ctx.shadowBlur = 20 * alpha;
+  ctx.globalAlpha = Math.max(0.1, alpha);
+}
+
+// Rainbow - SPECTACULAR growing rainbow effect
+function drawRainbowEffects(ctx, shape) {
+  const time = Date.now() * 0.001;
+  
+  // Growing rainbow aura with multiple layers
+  for (let layer = 0; layer < 6; layer++) {
+    const baseRadius = shape.size + layer * 30;
+    const growthFactor = Math.sin(time * 2 + layer * 0.5) * 0.3 + 1;
+    const radius = baseRadius * growthFactor;
     
-    // Background
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    this.ctx.fillRect(shape.x - barWidth/2, barY, barWidth, barHeight);
+    // Create rainbow gradient for this layer
+    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
+    const hueOffset = (time * 50 + layer * 60) % 360;
     
-    // Health fill with special colors for ultra-rare shapes
-    let healthColor = '#FF6B6B';
-    if (shape.rarity === 'rainbow') {
-      const hue = (Date.now() * 0.1) % 360;
-      healthColor = `hsl(${hue}, 100%, 60%)`;
-    } else if (shape.rarity === 'transgender') {
-      const colors = ['#55CDFC', '#F7A8B8', '#FFFFFF'];
-      healthColor = colors[Math.floor(Date.now() * 0.001) % colors.length];
+    for (let i = 0; i <= 10; i++) {
+      const stop = i / 10;
+      const hue = (hueOffset + i * 36) % 360;
+      const alpha = (0.8 - layer * 0.1) * (1 - stop) * (Math.sin(time * 3 + layer) * 0.3 + 0.7);
+      gradient.addColorStop(stop, `hsla(${hue}, 100%, 60%, ${alpha})`);
     }
     
-    this.ctx.fillStyle = healthColor;
-    this.ctx.fillRect(shape.x - barWidth/2, barY, barWidth * healthPercent, barHeight);
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+    ctx.fill();
   }
   
-  drawBasicShape(shape) {
-    try {
-      this.ctx.save();
-      this.ctx.translate(shape.x, shape.y);
-      this.ctx.rotate(shape.angle || 0);
-      
-      this.ctx.fillStyle = shape.color || '#FF6B6B';
-      this.ctx.strokeStyle = this.darkenColor(shape.color || '#FF6B6B');
-      this.ctx.lineWidth = 3;
-      
-      this.drawShapeOutline(shape, shape.size);
-      this.ctx.fill();
-      this.ctx.stroke();
-      
-      this.ctx.restore();
-    } catch (error) {
-      console.error('Error drawing basic shape:', error);
+  // Spectacular sparkles
+  for (let i = 0; i < 20; i++) {
+    const sparkleAngle = (i / 20) * Math.PI * 2 + time * 2;
+    const sparkleDistance = shape.size * 2.5 + Math.sin(time * 4 + i) * 30;
+    const sparkleX = Math.cos(sparkleAngle) * sparkleDistance;
+    const sparkleY = Math.sin(sparkleAngle) * sparkleDistance;
+    
+    const hue = (time * 100 + i * 18) % 360;
+    const sparkleSize = 3 + Math.sin(time * 5 + i) * 2;
+    
+    ctx.fillStyle = `hsl(${hue}, 100%, 70%)`;
+    ctx.shadowColor = `hsl(${hue}, 100%, 50%)`;
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(sparkleX, sparkleY, sparkleSize, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  // Rainbow trail effect
+  const trailLength = 12;
+  for (let i = 0; i < trailLength; i++) {
+    const trailTime = time - i * 0.1;
+    const trailAngle = trailTime * 3;
+    const trailRadius = shape.size * 1.8;
+    const trailX = Math.cos(trailAngle) * trailRadius;
+    const trailY = Math.sin(trailAngle) * trailRadius;
+    
+    const hue = (trailTime * 200 + i * 30) % 360;
+    const alpha = (1 - i / trailLength) * 0.8;
+    
+    ctx.fillStyle = `hsla(${hue}, 100%, 60%, ${alpha})`;
+    ctx.beginPath();
+    ctx.arc(trailX, trailY, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  ctx.shadowColor = '#FF0080';
+  ctx.shadowBlur = 40;
+}
+
+// Transgender - LEGENDARY pride effect
+function drawTransgenderEffects(ctx, shape) {
+  const time = Date.now() * 0.001;
+  const transColors = ['#55CDFC', '#F7A8B8', '#FFFFFF'];
+  
+  // Legendary pride auras with smooth transitions
+  for (let layer = 0; layer < 5; layer++) {
+    const baseRadius = shape.size + layer * 35;
+    const pulsePhase = time * 1.5 + layer * 0.8;
+    const pulseFactor = Math.sin(pulsePhase) * 0.4 + 1;
+    const radius = baseRadius * pulseFactor;
+    
+    // Cycle through pride colors
+    const colorIndex = Math.floor(time * 2 + layer) % transColors.length;
+    const currentColor = transColors[colorIndex];
+    const nextColor = transColors[(colorIndex + 1) % transColors.length];
+    
+    // Smooth color transition
+    const colorBlend = (Math.sin(time * 3 + layer) + 1) / 2;
+    
+    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
+    const alpha = (0.9 - layer * 0.15) * (Math.sin(pulsePhase) * 0.3 + 0.7);
+    
+    gradient.addColorStop(0, hexToRgba(currentColor, alpha));
+    gradient.addColorStop(0.5, hexToRgba(nextColor, alpha * 0.7));
+    gradient.addColorStop(1, hexToRgba(currentColor, 0));
+    
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  // Legendary hearts floating around
+  for (let i = 0; i < 8; i++) {
+    const heartAngle = (i / 8) * Math.PI * 2 + time;
+    const heartOrbit = shape.size * 3 + Math.sin(time * 2 + i) * 25;
+    const heartX = Math.cos(heartAngle) * heartOrbit;
+    const heartY = Math.sin(heartAngle) * heartOrbit;
+    
+    const heartSize = 6 + Math.sin(time * 4 + i) * 2;
+    const heartAlpha = Math.sin(time * 3 + i) * 0.4 + 0.6;
+    
+    // Draw heart shape
+    ctx.fillStyle = `rgba(247, 168, 184, ${heartAlpha})`;
+    ctx.shadowColor = '#F7A8B8';
+    ctx.shadowBlur = 8;
+    ctx.save();
+    ctx.translate(heartX, heartY);
+    ctx.scale(heartSize / 6, heartSize / 6);
+    drawHeart(ctx);
+    ctx.restore();
+  }
+  
+  // Pride flag waves
+  for (let i = 0; i < 3; i++) {
+    const waveY = (i - 1) * 15;
+    const waveAmplitude = 20;
+    const waveFreq = 0.02;
+    
+    ctx.strokeStyle = transColors[i];
+    ctx.lineWidth = 4;
+    ctx.shadowColor = transColors[i];
+    ctx.shadowBlur = 15;
+    
+    ctx.beginPath();
+    for (let x = -shape.size * 2; x <= shape.size * 2; x += 5) {
+      const y = waveY + Math.sin(x * waveFreq + time * 3) * waveAmplitude;
+      if (x === -shape.size * 2) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+    ctx.stroke();
+  }
+  
+  ctx.shadowColor = '#55CDFC';
+  ctx.shadowBlur = 50;
+}
+
+// Helper function to draw heart shape
+function drawHeart(ctx) {
+  ctx.beginPath();
+  ctx.moveTo(0, 3);
+  ctx.bezierCurveTo(-3, -2, -8, -2, -8, 2);
+  ctx.bezierCurveTo(-8, 6, -3, 10, 0, 14);
+  ctx.bezierCurveTo(3, 10, 8, 6, 8, 2);
+  ctx.bezierCurveTo(8, -2, 3, -2, 0, 3);
+  ctx.fill();
+}
+
+// Helper function to convert hex to rgba
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+// Draw main shape with enhanced styling
+function drawMainShape(ctx, shape) {
+  const size = shape.size * (shape.currentGrowth || 1);
+  
+  // Enhanced shape styling based on rarity
+  if (shape.rarity === 'rainbow') {
+    // Rainbow shape gets special gradient
+    const gradient = ctx.createLinearGradient(-size, -size, size, size);
+    const time = Date.now() * 0.005;
+    for (let i = 0; i <= 6; i++) {
+      const hue = (time * 50 + i * 60) % 360;
+      gradient.addColorStop(i / 6, `hsl(${hue}, 100%, 60%)`);
+    }
+    ctx.fillStyle = gradient;
+  } else if (shape.rarity === 'transgender') {
+    // Transgender shape gets pride gradient
+    const gradient = ctx.createLinearGradient(-size, -size, size, size);
+    gradient.addColorStop(0, '#55CDFC');
+    gradient.addColorStop(0.25, '#F7A8B8');
+    gradient.addColorStop(0.5, '#FFFFFF');
+    gradient.addColorStop(0.75, '#F7A8B8');
+    gradient.addColorStop(1, '#55CDFC');
+    ctx.fillStyle = gradient;
+  } else {
+    // Standard gradient for other shapes
+    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, size);
+    gradient.addColorStop(0, lightenColor(shape.color, 30));
+    gradient.addColorStop(1, shape.color);
+    ctx.fillStyle = gradient;
+  }
+  
+  // Enhanced stroke styling
+  let strokeWidth = 3;
+  if (shape.rarity === 'transgender') strokeWidth = 6;
+  else if (shape.rarity === 'rainbow') strokeWidth = 5;
+  else if (shape.rarity !== 'normal') strokeWidth = 4;
+  
+  ctx.strokeStyle = darkenColor(shape.color, 30);
+  ctx.lineWidth = strokeWidth;
+  
+  // Draw the shape
+  ctx.beginPath();
+  if (shape.sides === 4) {
+    ctx.rect(-size, -size, size * 2, size * 2);
+  } else {
+    drawPolygon(ctx, shape.sides, size);
+  }
+  ctx.fill();
+  ctx.stroke();
+  
+  // Add inner glow for rare shapes
+  if (shape.rarity !== 'normal') {
+    ctx.strokeStyle = `rgba(255, 255, 255, 0.4)`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+}
+
+// Draw floating particles around rare shapes
+function drawFloatingParticles(ctx, shape) {
+  if (!shape.particles) {
+    shape.particles = [];
+    // Initialize particles
+    const particleCount = getParticleCount(shape.rarity);
+    for (let i = 0; i < particleCount; i++) {
+      shape.particles.push({
+        angle: (i / particleCount) * Math.PI * 2,
+        distance: shape.size * 2 + Math.random() * 30,
+        speed: 0.02 + Math.random() * 0.03,
+        size: 2 + Math.random() * 3,
+        phase: Math.random() * Math.PI * 2
+      });
     }
   }
   
-  drawShapeOutline(shape, size) {
-    this.ctx.beginPath();
-    const sides = shape.sides || 4;
+  const time = Date.now() * 0.001;
+  
+  shape.particles.forEach((particle, index) => {
+    particle.angle += particle.speed;
+    const orbitRadius = particle.distance + Math.sin(time * 2 + particle.phase) * 10;
     
-    if (sides === 4) {
-      this.ctx.rect(-size, -size, size * 2, size * 2);
+    const x = shape.x + Math.cos(particle.angle) * orbitRadius;
+    const y = shape.y + Math.sin(particle.angle) * orbitRadius;
+    
+    ctx.save();
+    ctx.translate(x, y);
+    
+    // Particle styling based on shape rarity
+    switch(shape.rarity) {
+      case 'greenRadiant':
+        ctx.fillStyle = `rgba(0, 255, 0, ${0.6 + Math.sin(time * 3 + index) * 0.4})`;
+        ctx.shadowColor = '#00FF00';
+        ctx.shadowBlur = 5;
+        break;
+      case 'blueRadiant':
+        ctx.fillStyle = `rgba(0, 191, 255, ${0.7 + Math.sin(time * 4 + index) * 0.3})`;
+        ctx.shadowColor = '#00BFFF';
+        ctx.shadowBlur = 8;
+        break;
+      case 'shadow':
+        ctx.fillStyle = `rgba(139, 0, 255, ${0.3 + Math.sin(time * 2 + index) * 0.2})`;
+        ctx.shadowColor = '#8B00FF';
+        ctx.shadowBlur = 6;
+        break;
+      case 'rainbow':
+        const hue = (time * 100 + index * 30) % 360;
+        ctx.fillStyle = `hsl(${hue}, 100%, 60%)`;
+        ctx.shadowColor = `hsl(${hue}, 100%, 50%)`;
+        ctx.shadowBlur = 10;
+        break;
+      case 'transgender':
+        const colors = ['#55CDFC', '#F7A8B8', '#FFFFFF'];
+        const colorIndex = Math.floor(time * 2 + index) % colors.length;
+        ctx.fillStyle = colors[colorIndex];
+        ctx.shadowColor = colors[colorIndex];
+        ctx.shadowBlur = 8;
+        break;
+    }
+    
+    ctx.beginPath();
+    ctx.arc(0, 0, particle.size, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.restore();
+  });
+}
+
+// Get particle count based on rarity
+function getParticleCount(rarity) {
+  switch(rarity) {
+    case 'greenRadiant': return 6;
+    case 'blueRadiant': return 8;
+    case 'shadow': return 5;
+    case 'rainbow': return 12;
+    case 'transgender': return 10;
+    default: return 0;
+  }
+}
+
+// Helper function to draw polygon
+function drawPolygon(ctx, sides, size) {
+  const angle = (Math.PI * 2) / sides;
+  
+  for (let i = 0; i < sides; i++) {
+    const x = Math.cos(angle * i - Math.PI / 2) * size;
+    const y = Math.sin(angle * i - Math.PI / 2) * size;
+    
+    if (i === 0) {
+      ctx.moveTo(x, y);
     } else {
-      for (let i = 0; i < sides; i++) {
-        const angle = (i / sides) * Math.PI * 2;
-        const x = Math.cos(angle) * size;
-        const y = Math.sin(angle) * size;
-        
-        if (i === 0) {
-          this.ctx.moveTo(x, y);
-        } else {
-          this.ctx.lineTo(x, y);
-        }
-      }
-      this.ctx.closePath();
+      ctx.lineTo(x, y);
     }
   }
-  
-  drawProjectiles() {
-    try {
-      this.ctx.fillStyle = '#FFD700';
-      this.ctx.strokeStyle = '#FFA500';
-      this.ctx.lineWidth = 2;
-      
-      this.state.projectiles.forEach(projectile => {
-        this.ctx.beginPath();
-        this.ctx.arc(projectile.x, projectile.y, projectile.size, 0, Math.PI * 2);
-        this.ctx.fill();
-        this.ctx.stroke();
-      });
-    } catch (error) {
-      console.error('Error drawing projectiles:', error);
-    }
-  }
-  
-  drawParticles() {
-    try {
-      this.state.particles.forEach(particle => {
-        this.ctx.save();
-        this.ctx.globalAlpha = particle.lifetime || 1;
-        
-        if (particle.glow) {
-          this.ctx.shadowColor = particle.color;
-          this.ctx.shadowBlur = particle.size;
-        }
-        
-        this.ctx.fillStyle = particle.color;
-        this.ctx.beginPath();
-        this.ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-        this.ctx.fill();
-        
-        this.ctx.restore();
-      });
-    } catch (error) {
-      console.error('Error drawing particles:', error);
-    }
-  }
-  
-  // BUG FIX: Improved minimap with error handling
-  drawMinimap() {
-    if (!this.minimapCtx) return;
+  ctx.closePath();
+}
+
+// Helper function to lighten color
+function lightenColor(color, percent) {
+  try {
+    const num = parseInt(color.replace('#', ''), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = (num >> 16) + amt;
+    const G = (num >> 8 & 0x00FF) + amt;
+    const B = (num & 0x0000FF) + amt;
     
-    try {
-      const ctx = this.minimapCtx;
-      const scale = 176 / Math.max(CONFIG.WORLD_WIDTH, CONFIG.WORLD_HEIGHT);
+    return '#' + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+      (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+      (B < 255 ? B < 1 ? 0 : B : 255))
+      .toString(16).slice(1);
+  } catch (error) {
+    return color;
+  }
+}
+
+// Helper function to darken color
+function darkenColor(color, percent) {
+  try {
+    const num = parseInt(color.replace('#', ''), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = (num >> 16) - amt;
+    const G = (num >> 8 & 0x00FF) - amt;
+    const B = (num & 0x0000FF) - amt;
+    
+    return '#' + (0x1000000 + (R > 0 ? R : 0) * 0x10000 +
+      (G > 0 ? G : 0) * 0x100 +
+      (B > 0 ? B : 0))
+      .toString(16).slice(1);
+  } catch (error) {
+    return color;
+  }
+}
+
+// Enhanced particle explosion for rare shape destruction
+function createRareShapeExplosion(ctx, shape, particles) {
+  const explosionParticles = getRareExplosionParticles(shape.rarity);
+  
+  for (let i = 0; i < explosionParticles; i++) {
+    const angle = (Math.PI * 2 * i) / explosionParticles + Math.random() * 0.5;
+    const speed = getRareExplosionSpeed(shape.rarity) * (0.5 + Math.random() * 0.5);
+    const size = getRareExplosionSize(shape.rarity);
+    
+    const particle = {
+      x: shape.x,
+      y: shape.y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      color: getRareExplosionColor(shape.rarity, i),
+      size: size * (0.5 + Math.random() * 0.5),
+      lifetime: 1,
+      maxLifetime: 1,
+      rarity: shape.rarity,
+      angle: 0,
+      rotationSpeed: (Math.random() - 0.5) * 0.2
+    };
+    
+    // Add special properties for ultra-rare shapes
+    if (shape.rarity === 'rainbow') {
+      particle.rainbow = true;
+      particle.hueShift = i * 30;
+    } else if (shape.rarity === 'transgender') {
+      particle.transgender = true;
+      particle.colorCycle = i % 3;
+    }
+    
+    particles.push(particle);
+  }
+  
+  // Add special ring explosion for legendary shapes
+  if (shape.rarity === 'rainbow' || shape.rarity === 'transgender') {
+    const ringParticles = 30;
+    for (let i = 0; i < ringParticles; i++) {
+      const angle = (Math.PI * 2 * i) / ringParticles;
+      const speed = 15 + Math.random() * 5;
       
-      // Clear minimap
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-      ctx.fillRect(0, 0, 176, 176);
-      
-      // Border
-      ctx.strokeStyle = 'rgba(0, 178, 225, 0.5)';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(0, 0, 176, 176);
-      
-      // Draw shapes with rarity-based colors
-      this.state.shapes.forEach(shape => {
-        const x = shape.x * scale;
-        const y = shape.y * scale;
-        let color = 'rgba(255, 255, 255, 0.3)';
-        let size = 1;
-        
-        switch(shape.rarity) {
-          case 'greenRadiant': color = '#00FF00'; size = 2; break;
-          case 'blueRadiant': color = '#00BFFF'; size = 3; break;
-          case 'rainbow': 
-            const hue = (Date.now() * 0.1) % 360;
-            color = `hsl(${hue}, 100%, 60%)`;
-            size = 4;
-            break;
-          case 'transgender':
-            const colors = ['#55CDFC', '#F7A8B8', '#FFFFFF'];
-            color = colors[Math.floor(Date.now() * 0.002) % colors.length];
-            size = 5;
-            break;
-          case 'shadow':
-            const dist = Math.sqrt(Math.pow(shape.x - this.state.player.x, 2) + Math.pow(shape.y - this.state.player.y, 2));
-            color = `rgba(139, 0, 255, ${dist > 300 ? 0.2 : 0.8})`;
-            size = 2;
-            break;
-        }
-        
-        ctx.fillStyle = color;
-        ctx.fillRect(x - size/2, y - size/2, size, size);
+      particles.push({
+        x: shape.x,
+        y: shape.y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        color: getRareExplosionColor(shape.rarity, i),
+        size: 3,
+        lifetime: 1.5,
+        maxLifetime: 1.5,
+        ring: true,
+        rarity: shape.rarity
       });
-      
-      // Draw player
-      ctx.fillStyle = '#00B2E1';
-      const playerX = this.state.player.x * scale;
-      const playerY = this.state.player.y * scale;
-      ctx.beginPath();
-      ctx.arc(playerX, playerY, 3, 0, Math.PI * 2);
-      ctx.fill();
-      
-      // View area
-      ctx.strokeStyle = 'rgba(0, 178, 225, 0.3)';
-      ctx.lineWidth = 1;
-      const viewX = this.state.camera.x * scale;
-      const viewY = this.state.camera.y * scale;
-      const viewW = (this.canvas?.width || 800) * scale;
-      const viewH = (this.canvas?.height || 600) * scale;
-      ctx.strokeRect(viewX, viewY, viewW, viewH);
-    } catch (error) {
-      console.error('Error drawing minimap:', error);
-    }
-  }
-  
-  // ==================== HELPER FUNCTIONS ====================
-  darkenColor(color) {
-    try {
-      if (!color || color.includes('rgba') || color.includes('rgb')) return color;
-      
-      const hex = color.replace('#', '');
-      if (hex.length !== 6) return color;
-      
-      const r = Math.max(0, parseInt(hex.substr(0, 2), 16) * 0.7);
-      const g = Math.max(0, parseInt(hex.substr(2, 2), 16) * 0.7);
-      const b = Math.max(0, parseInt(hex.substr(4, 2), 16) * 0.7);
-      
-      return `rgb(${Math.floor(r)}, ${Math.floor(g)}, ${Math.floor(b)})`;
-    } catch (error) {
-      return color || '#666666';
-    }
-  }
-  
-  hexToRgba(hex, alpha) {
-    try {
-      const r = parseInt(hex.slice(1, 3), 16);
-      const g = parseInt(hex.slice(3, 5), 16);
-      const b = parseInt(hex.slice(5, 7), 16);
-      return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, alpha))})`;
-    } catch (error) {
-      return `rgba(255, 255, 255, ${alpha})`;
-    }
-  }
-  
-  // ==================== GAME LOOP ====================
-  gameLoop(currentTime) {
-    try {
-      const deltaTime = Math.min(currentTime - this.lastTime, 50); // BUG FIX: Cap delta time
-      this.lastTime = currentTime;
-      
-      if (this.running) {
-        this.update(deltaTime);
-        this.render();
-      }
-      
-      requestAnimationFrame((time) => this.gameLoop(time));
-    } catch (error) {
-      console.error('Critical error in game loop:', error);
-      // Continue the game loop to prevent complete failure
-      requestAnimationFrame((time) => this.gameLoop(time));
     }
   }
 }
 
-// ==================== STARTUP ====================
-window.addEventListener('DOMContentLoaded', () => {
-  try {
-    console.log('🎮 Starting Arras.io Enhanced Edition...');
+// Get explosion particle count for rarity
+function getRareExplosionParticles(rarity) {
+  switch(rarity) {
+    case 'greenRadiant': return 25;
+    case 'blueRadiant': return 35;
+    case 'shadow': return 30;
+    case 'rainbow': return 50;
+    case 'transgender': return 60;
+    default: return 15;
+  }
+}
+
+// Get explosion speed for rarity
+function getRareExplosionSpeed(rarity) {
+  switch(rarity) {
+    case 'greenRadiant': return 8;
+    case 'blueRadiant': return 10;
+    case 'shadow': return 12;
+    case 'rainbow': return 15;
+    case 'transgender': return 18;
+    default: return 6;
+  }
+}
+
+// Get explosion particle size for rarity
+function getRareExplosionSize(rarity) {
+  switch(rarity) {
+    case 'greenRadiant': return 4;
+    case 'blueRadiant': return 5;
+    case 'shadow': return 6;
+    case 'rainbow': return 8;
+    case 'transgender': return 10;
+    default: return 3;
+  }
+}
+
+// Get explosion color for rarity
+function getRareExplosionColor(rarity, index) {
+  switch(rarity) {
+    case 'greenRadiant':
+      return `hsl(120, 100%, ${60 + Math.random() * 20}%)`;
+    case 'blueRadiant':
+      return `hsl(195, 100%, ${60 + Math.random() * 20}%)`;
+    case 'shadow':
+      return `hsl(280, 100%, ${40 + Math.random() * 20}%)`;
+    case 'rainbow':
+      const hue = (index * 30) % 360;
+      return `hsl(${hue}, 100%, 60%)`;
+    case 'transgender':
+      const colors = ['#55CDFC', '#F7A8B8', '#FFFFFF'];
+      return colors[index % colors.length];
+    default:
+      return '#FFD700';
+  }
+}
+
+// Enhanced particle update with special effects
+function updateEnhancedParticles(particles, deltaTime) {
+  const time = Date.now() * 0.001;
+  
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const particle = particles[i];
     
-    const game = new Game();
+    // Update position
+    particle.x += particle.vx;
+    particle.y += particle.vy;
     
-    // Make game available for debugging
-    window.game = game;
+    // Apply friction
+    particle.vx *= 0.98;
+    particle.vy *= 0.98;
     
-    // BUG FIX: Complete startup message
-    console.log('✅ Arras.io Enhanced Edition with Ultra-Rare Shapes started!');
-    console.log('🌟 Features:');
-    console.log('   ⭐ Green Radiant: Bright green glow (1/50)');
-    console.log('   ✨ Blue Radiant: Intense blue radiance (1/125)');
+    // Update rotation
+    if (particle.rotationSpeed) {
+      particle.angle += particle.rotationSpeed;
+    }
+    
+    // Special effects for rare particles
+    if (particle.rainbow) {
+      particle.color = `hsl(${(time * 100 + particle.hueShift) % 360}, 100%, 60%)`;
+    } else if (particle.transgender) {
+      const colors = ['#55CDFC', '#F7A8B8', '#FFFFFF'];
+      particle.color = colors[Math.floor(time * 3 + particle.colorCycle) % colors.length];
+    }
+    
+    // Update lifetime
+    particle.lifetime -= 0.016; // ~60fps
+    
+    // Shrink particle over time
+    const lifetimeRatio = particle.lifetime / particle.maxLifetime;
+    particle.currentSize = particle.size * lifetimeRatio;
+    
+    // Remove dead particles
+    if (particle.lifetime <= 0 || particle.currentSize < 0.1) {
+      particles.splice(i, 1);
+    }
+  }
+}
+
+// Render enhanced particles with special effects
+function renderEnhancedParticle(ctx, particle) {
+  ctx.save();
+  ctx.translate(particle.x, particle.y);
+  
+  if (particle.angle) {
+    ctx.rotate(particle.angle);
+  }
+  
+  // Set particle alpha based on lifetime
+  const alpha = particle.lifetime / particle.maxLifetime;
+  ctx.globalAlpha = alpha;
+  
+  // Special rendering for rare particles
+  if (particle.rarity === 'rainbow') {
+    // Rainbow particles get extra glow
+    ctx.shadowColor = particle.color;
+    ctx.shadowBlur = particle.currentSize * 2;
+  } else if (particle.rarity === 'transgender') {
+    // Transgender particles get pride glow
+    ctx.shadowColor = particle.color;
+    ctx.shadowBlur = particle.currentSize * 1.5;
+  } else if (particle.rarity === 'shadow') {
+    // Shadow particles fade in and out
+    ctx.globalAlpha *= Math.sin(particle.lifetime * Math.PI);
+  }
+  
+  ctx.fillStyle = particle.color;
+  ctx.beginPath();
+  
+  if (particle.ring) {
+    // Ring particles are hollow circles
+    ctx.arc(0, 0, particle.currentSize, 0, Math.PI * 2);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = particle.color;
+    ctx.stroke();
+  } else {
+    // Regular filled particles
+    ctx.arc(0, 0, particle.currentSize, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  ctx.restore();
+}
+
+// Export functions for use in game
+if (typeof window !== 'undefined') {
+  window.EnhancedShapeVisuals = {
+    drawEnhancedShape,
+    createRareShapeExplosion,
+    updateEnhancedParticles,
+    renderEnhancedParticle
+  };
+}
+
+    console.log('✨ Enhanced Shape Visual Effects System loaded!');
+    console.log('🌈 Rainbow shapes now have SPECTACULAR growing effects!');
+    console.log('🏳️‍⚧️ Transgender shapes now have LEGENDARY pride animations!');
+    console.log('⚡ All rare shapes now have enhanced particle systems!');
+    console.log('   ✨ Blue Radiant: Intense blue radiance (1/125)'); 
     console.log('   ☠️ Shadow: Smooth fade-in proximity effect (1/500)');
     console.log('   🌈 Rainbow: GROWING rainbow with sparkles (1/5000)!');
     console.log('   🏳️‍⚧️ Transgender: LEGENDARY with pride effects (1/50000)!');

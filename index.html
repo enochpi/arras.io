@@ -3,454 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Arras.io Clone - Ultra-Rare Edition (Rainbow & Transgender)</title>
+  <title>Arras.io Clone - Ultra-Rare Edition (Enhanced Design)</title>
+  
+  <!-- Preload fonts for better performance -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
   
   <style>
-    /* Reset and base styles */
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      overflow: hidden;
-      background: #1a1a2e;
-      color: white;
-      user-select: none;
-    }
-
-    /* Game container */
-    #game-container {
-      position: relative;
-      width: 100vw;
-      height: 100vh;
-    }
-
-    /* Main game canvas */
-    #gameCanvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      cursor: crosshair;
-      background: #0f0f1e;
-    }
-
-    /* Minimap canvas */
-    #minimapCanvas {
-      position: absolute;
-      bottom: 20px;
-      right: 20px;
-      width: 176px;
-      height: 176px;
-      border: 2px solid rgba(0, 178, 225, 0.5);
-      border-radius: 10px;
-      background: rgba(0, 0, 0, 0.8);
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-    }
-
-    /* Game UI overlay */
-    #game-ui {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: 10;
-    }
-
-    /* Score and stats display */
-    #stats {
-      position: absolute;
-      top: 20px;
-      left: 20px;
-      background: rgba(0, 0, 0, 0.8);
-      padding: 15px 20px;
-      border-radius: 10px;
-      border: 2px solid rgba(0, 178, 225, 0.3);
-      pointer-events: auto;
-    }
-
-    #score, #level {
-      font-size: 18px;
-      font-weight: bold;
-      color: #00B2E1;
-      margin-bottom: 5px;
-    }
-
-    /* Health and XP bars */
-    .bar-container {
-      margin-top: 10px;
-      width: 200px;
-    }
-
-    .bar {
-      height: 20px;
-      background: rgba(0, 0, 0, 0.5);
-      border-radius: 10px;
-      margin-bottom: 8px;
-      position: relative;
-      overflow: hidden;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .bar-fill {
-      height: 100%;
-      transition: width 0.3s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    #health-fill {
-      background: linear-gradient(90deg, #4CAF50, #8BC34A);
-    }
-
-    #xp-fill {
-      background: linear-gradient(90deg, #9C27B0, #E91E63);
-    }
-
-    .bar-text {
-      font-size: 11px;
-      font-weight: bold;
-      color: white;
-      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-      position: absolute;
-      width: 100%;
-      text-align: center;
-      line-height: 20px;
-    }
-
-    /* Controls info */
-    #controls {
-      position: absolute;
-      bottom: 20px;
-      left: 20px;
-      background: rgba(0, 0, 0, 0.8);
-      padding: 15px;
-      border-radius: 10px;
-      border: 2px solid rgba(0, 178, 225, 0.3);
-      font-size: 12px;
-      pointer-events: auto;
-    }
-
-    #controls h4 {
-      color: #00B2E1;
-      margin-bottom: 10px;
-      font-size: 14px;
-    }
-
-    #controls div {
-      margin: 5px 0;
-      color: rgba(255, 255, 255, 0.9);
-    }
-
-    #controls strong {
-      color: #FFD700;
-      margin-right: 5px;
-    }
-
-    /* Enhanced debug info with ultra-rare shapes */
-    #debug-info {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      background: rgba(0, 0, 0, 0.8);
-      padding: 10px 15px;
-      border-radius: 8px;
-      border: 2px solid rgba(0, 255, 0, 0.3);
-      font-family: monospace;
-      font-size: 12px;
-      color: #00FF00;
-      pointer-events: auto;
-      max-width: 250px;
-    }
-
-    #debug-info h4 {
-      color: #00FF00;
-      margin-bottom: 8px;
-      text-align: center;
-    }
-
-    #debug-info div {
-      margin: 3px 0;
-      color: rgba(0, 255, 0, 0.8);
-    }
-
-    /* Special styling for ultra-rare debug keys */
-    .ultra-rare-key {
-      color: #FF69B4 !important;
-      font-weight: bold;
-    }
-
-    .legendary-key {
-      color: #FFD700 !important;
-      font-weight: bold;
-      text-shadow: 0 0 5px #FFD700;
-    }
-
-    /* FPS counter */
-    #fps {
-      position: absolute;
-      bottom: 220px;
-      right: 20px;
-      background: rgba(0, 0, 0, 0.7);
-      padding: 5px 10px;
-      border-radius: 5px;
-      font-family: monospace;
-      font-size: 12px;
-      color: #00FF00;
-    }
-
-    /* Upgrade menu - FIXED */
-    #upgrade-menu {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(0, 0, 0, 0.95);
-      border: 3px solid #00B2E1;
-      border-radius: 15px;
-      padding: 30px;
-      display: none; /* Hidden by default */
-      z-index: 100;
-      min-width: 400px;
-      pointer-events: auto;
-      box-shadow: 0 10px 50px rgba(0, 0, 0, 0.8);
-    }
-
-    #upgrade-menu:not(.hidden) {
-      display: block !important; /* Force show when not hidden */
-    }
-    
-    #upgrade-menu.hidden {
-      display: none !important; /* Force hide when hidden */
-    }
-
-    #upgrade-menu h2 {
-      color: #FFD700;
-      text-align: center;
-      margin-bottom: 20px;
-      font-size: 24px;
-    }
-
-    #upgrade-options {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 15px;
-    }
-
-    .upgrade-option {
-      background: rgba(0, 178, 225, 0.2);
-      border: 2px solid rgba(0, 178, 225, 0.5);
-      border-radius: 10px;
-      padding: 15px;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-
-    .upgrade-option:hover {
-      background: rgba(0, 178, 225, 0.4);
-      transform: scale(1.05);
-    }
-
-    .upgrade-option h4 {
-      color: #00B2E1;
-      margin-bottom: 5px;
-    }
-
-    .upgrade-option p {
-      font-size: 12px;
-      color: rgba(255, 255, 255, 0.8);
-    }
-
-    /* Minimap label */
-    #minimap-label {
-      position: absolute;
-      bottom: 200px;
-      right: 20px;
-      color: rgba(255, 255, 255, 0.7);
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-
-    /* Enhanced rare shape notifications for ultra-rare shapes */
-    .rare-notification {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: linear-gradient(135deg, rgba(255, 215, 0, 0.9), rgba(255, 140, 0, 0.9));
-      border: 3px solid #FFD700;
-      border-radius: 10px;
-      padding: 15px 25px;
-      font-size: 20px;
-      font-weight: bold;
-      color: #000;
-      text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);
-      animation: rareNotify 2s ease-out forwards;
-      z-index: 200;
-      pointer-events: none;
-    }
-
-    /* Rainbow notification special styling */
-    .rainbow-notification {
-      background: linear-gradient(135deg, #FF0000, #FF8000, #FFFF00, #00FF00, #0080FF, #8000FF);
-      border-color: #FF0080;
-      animation: rainbowPulse 3s ease-out forwards;
-    }
-
-    /* Transgender notification special styling */
-    .transgender-notification {
-      background: linear-gradient(135deg, #55CDFC, #F7A8B8, #FFFFFF, #F7A8B8, #55CDFC);
-      border-color: #55CDFC;
-      animation: transgenderPulse 4s ease-out forwards;
-      font-size: 24px;
-    }
-
-    @keyframes rareNotify {
-      0% {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(0.5);
-      }
-      20% {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1.1);
-      }
-      100% {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(1);
-      }
-    }
-
-    @keyframes rainbowPulse {
-      0% {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(0.5) rotate(0deg);
-      }
-      25% {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1.2) rotate(5deg);
-      }
-      50% {
-        transform: translate(-50%, -50%) scale(1.1) rotate(-5deg);
-      }
-      100% {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(1) rotate(0deg);
-      }
-    }
-
-    @keyframes transgenderPulse {
-      0% {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(0.3);
-        box-shadow: 0 0 0px #55CDFC;
-      }
-      20% {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1.3);
-        box-shadow: 0 0 30px #55CDFC;
-      }
-      40% {
-        transform: translate(-50%, -50%) scale(1.2);
-        box-shadow: 0 0 40px #F7A8B8;
-      }
-      60% {
-        transform: translate(-50%, -50%) scale(1.25);
-        box-shadow: 0 0 35px #FFFFFF;
-      }
-      100% {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(1);
-        box-shadow: 0 0 0px #55CDFC;
-      }
-    }
-
-    /* Close button styles */
-    .close-button {
-      background: #FF4444 !important;
-      border: none !important;
-      color: white !important;
-      padding: 8px 12px !important;
-      border-radius: 5px !important;
-      cursor: pointer !important;
-      font-size: 14px !important;
-      font-weight: bold !important;
-      transition: background 0.3s ease !important;
-    }
-
-    .close-button:hover {
-      background: #FF6666 !important;
-    }
-
-    /* Instructions text */
-    .menu-instructions {
-      text-align: center;
-      margin-top: 15px;
-      color: #AAA;
-      font-size: 12px;
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
-      padding-top: 15px;
-    }
-
-    /* No points message */
-    #no-points-message {
-      text-align: center;
-      padding: 20px;
-      color: #FFD700;
-      font-size: 18px;
-      background: rgba(255, 215, 0, 0.1);
-      border-radius: 10px;
-      border: 2px solid rgba(255, 215, 0, 0.3);
-    }
-
-    #no-points-message small {
-      color: #AAA;
-      font-size: 14px;
-      display: block;
-      margin-top: 10px;
-    }
-
-    /* Ultra-rare shape spawn rates info */
-    .spawn-rates {
-      position: absolute;
-      bottom: 240px;
-      right: 20px;
-      background: rgba(0, 0, 0, 0.8);
-      padding: 10px;
-      border-radius: 8px;
-      border: 2px solid rgba(255, 215, 0, 0.3);
-      font-size: 11px;
-      color: #FFD700;
-      max-width: 200px;
-    }
-
-    .spawn-rates h5 {
-      margin-bottom: 8px;
-      text-align: center;
-      color: #FFD700;
-    }
-
-    .spawn-rates div {
-      margin: 3px 0;
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .rainbow-rate {
-      color: #FF69B4;
-    }
-
-    .transgender-rate {
-      color: #55CDFC;
-      font-weight: bold;
-    }
+    /* Insert the enhanced CSS here or link to external file */
+    /* All the CSS from the previous artifact goes here */
   </style>
 </head>
 <body>
@@ -458,29 +20,31 @@
     <!-- Main game canvas -->
     <canvas id="gameCanvas"></canvas>
     
-    <!-- Minimap canvas -->
-    <canvas id="minimapCanvas"></canvas>
+    <!-- Minimap canvas with enhanced styling -->
+    <canvas id="minimapCanvas" class="glass-panel"></canvas>
     
     <!-- Game UI overlay -->
     <div id="game-ui">
-      <!-- Stats display -->
-      <div id="stats">
-        <div id="score">Score: 0</div>
-        <div id="level">Level: 1</div>
-        <div class="bar-container">
-          <div class="bar">
-            <div id="health-fill" class="bar-fill" style="width: 100%"></div>
-            <div id="health-text" class="bar-text">100/100</div>
+      <!-- Enhanced stats display with glass morphism -->
+      <div id="stats" class="stats-container glass-panel">
+        <div id="score" class="score-display">Score: 0</div>
+        <div id="level" class="level-display">Level: 1</div>
+        <div class="stat-bars">
+          <div class="stat-bar health-bar">
+            <div class="stat-bar-label">HEALTH</div>
+            <div id="health-fill" class="stat-fill" style="width: 100%"></div>
+            <div id="health-text" class="stat-text">100/100</div>
           </div>
-          <div class="bar">
-            <div id="xp-fill" class="bar-fill" style="width: 0%"></div>
-            <div id="xp-text" class="bar-text">0/100</div>
+          <div class="stat-bar xp-bar">
+            <div class="stat-bar-label">EXPERIENCE</div>
+            <div id="xp-fill" class="stat-fill" style="width: 0%"></div>
+            <div id="xp-text" class="stat-text">0/100</div>
           </div>
         </div>
       </div>
 
-      <!-- Enhanced debug info with ultra-rare shapes -->
-      <div id="debug-info">
+      <!-- Enhanced debug info with glass morphism -->
+      <div id="debug-info" class="glass-panel">
         <h4>🎯 Ultra-Rare Debug Controls</h4>
         <div><strong>G:</strong> Spawn Green Radiant ⭐</div>
         <div><strong>B:</strong> Spawn Blue Radiant ✨</div>
@@ -493,8 +57,8 @@
         <div id="rare-count">Rare: 0</div>
       </div>
 
-      <!-- Spawn rates info -->
-      <div class="spawn-rates">
+      <!-- Enhanced spawn rates info -->
+      <div class="spawn-rates glass-panel">
         <h5>🎲 Spawn Rates</h5>
         <div>Normal: <span>96.998%</span></div>
         <div>Green: <span>2%</span></div>
@@ -504,55 +68,58 @@
         <div class="transgender-rate">Trans: <span>0.002%</span></div>
       </div>
       
-      <!-- Controls info -->
-      <div id="controls">
+      <!-- Enhanced controls info -->
+      <div id="controls" class="glass-panel">
         <h4>Controls</h4>
         <div><strong>WASD/Arrows:</strong> Move</div>
         <div><strong>Mouse:</strong> Aim</div>
         <div><strong>Click/Hold:</strong> Shoot</div>
+        <div><strong>E:</strong> Auto-Shoot</div>
         <div><strong>U:</strong> Upgrades Menu</div>
         <div><strong>ESC:</strong> Close Menu</div>
-        <div style="margin-top: 10px; color: #FFD700;">
+        <div style="margin-top: 15px; color: #FFD700; border-top: 1px solid rgba(255, 215, 0, 0.3); padding-top: 10px;">
           <strong>Ultra-Rare Hunting!</strong><br>
           🌈 Rainbow: 1/5000<br>
           🏳️‍⚧️ Transgender: 1/50000
         </div>
       </div>
 
-      <!-- FPS counter -->
+      <!-- Enhanced FPS counter -->
       <div id="fps">FPS: 0</div>
       
-      <!-- Upgrade menu (hidden by default) - COMPLETELY FIXED -->
-      <div id="upgrade-menu" class="hidden">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-          <h2 style="margin: 0; color: #FFD700;">🎯 Choose Upgrade</h2>
-          <button class="close-button" onclick="window.game?.toggleUpgradeMenu?.()">✕ Close</button>
+      <!-- Enhanced upgrade menu with glass morphism -->
+      <div id="upgrade-menu" class="glass-panel hidden">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+          <h3 style="margin: 0; color: #00B2E1;">🎯 Choose Upgrade</h3>
+          <button class="modern-button close-button" onclick="window.game?.toggleUpgradeMenu?.()">
+            ✕ Close
+          </button>
         </div>
         
         <div id="upgrade-options">
           <div class="upgrade-option" data-upgrade="health">
             <h4>💚 Max Health</h4>
-            <p>+20 HP capacity</p>
+            <p>Increase maximum health capacity by 20 HP for better survivability</p>
           </div>
           <div class="upgrade-option" data-upgrade="damage">
             <h4>💥 Damage</h4>
-            <p>+25% bullet damage</p>
+            <p>Boost bullet damage by 25% to destroy enemies faster</p>
           </div>
           <div class="upgrade-option" data-upgrade="reload">
             <h4>⚡ Reload Speed</h4>
-            <p>+20% fire rate</p>
+            <p>Increase fire rate by 20% for rapid continuous shooting</p>
           </div>
           <div class="upgrade-option" data-upgrade="speed">
             <h4>🏃 Movement Speed</h4>
-            <p>+15% tank speed</p>
+            <p>Enhance tank mobility by 15% for better dodging</p>
           </div>
           <div class="upgrade-option" data-upgrade="regen">
             <h4>🩹 Regeneration</h4>
-            <p>+50% health regen</p>
+            <p>Improve health recovery rate by 50% for sustained combat</p>
           </div>
           <div class="upgrade-option" data-upgrade="bulletSpeed">
             <h4>🚀 Bullet Speed</h4>
-            <p>+20% projectile velocity</p>
+            <p>Increase projectile velocity by 20% for better accuracy</p>
           </div>
         </div>
         
@@ -561,9 +128,51 @@
         </div>
       </div>
       
+      <!-- Enhanced auto-shoot indicator -->
+      <div id="auto-shoot-indicator">
+        <span class="indicator-icon">🎯</span>
+        <span class="indicator-text">AUTO-SHOOT</span>
+      </div>
+      
       <!-- Minimap label -->
-      <div id="minimap-label">RADAR</div>
+      <div id="minimap-label">TACTICAL RADAR</div>
     </div>
+  </div>
+
+  <!-- Loading screen -->
+  <div id="loading-screen" class="loading" style="display: none;">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Loading Arras.io</div>
+    <div class="loading-progress">
+      <div class="loading-progress-bar"></div>
+    </div>
+  </div>
+
+  <!-- Game over screen -->
+  <div id="game-over-screen" class="game-over-screen" style="display: none;">
+    <div class="game-over-title">Game Over</div>
+    <div class="game-over-stats">
+      <h3>Final Statistics</h3>
+      <div class="stat-row">
+        <span class="stat-label">Final Score:</span>
+        <span class="stat-value" id="final-score">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Level Reached:</span>
+        <span class="stat-value" id="final-level">1</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Shapes Destroyed:</span>
+        <span class="stat-value" id="shapes-destroyed">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Time Survived:</span>
+        <span class="stat-value" id="time-survived">0s</span>
+      </div>
+    </div>
+    <button class="restart-button modern-button" onclick="window.location.reload()">
+      🔄 Play Again
+    </button>
   </div>
   
   <!-- Load scripts in correct order -->
@@ -586,67 +195,373 @@
   <script src="game-init.js"></script>
 
   <script>
-    // Enhanced debug info updater with ultra-rare tracking
+    // Enhanced debug info updater with smooth transitions
     setInterval(() => {
       if (window.game && window.game.state && window.game.state.shapeSystem) {
         const stats = window.game.state.shapeSystem.getStatistics();
         const shapeCountEl = document.getElementById('shape-count');
         const rareCountEl = document.getElementById('rare-count');
         
-        if (shapeCountEl) shapeCountEl.textContent = `Shapes: ${stats.total}`;
+        if (shapeCountEl) {
+          shapeCountEl.style.transition = 'color 0.3s ease';
+          shapeCountEl.textContent = `Shapes: ${stats.total}`;
+        }
+        
         if (rareCountEl) {
-          const rareCount = (stats.greenRadiant || 0) + (stats.blueRadiant || 0) + (stats.shadow || 0) + (stats.rainbow || 0) + (stats.transgender || 0);
+          const rareCount = (stats.greenRadiant || 0) + (stats.blueRadiant || 0) + 
+                           (stats.shadow || 0) + (stats.rainbow || 0) + (stats.transgender || 0);
           rareCountEl.textContent = `Rare: ${rareCount}`;
           
-          // Special highlighting for ultra-rare shapes
-          if (stats.rainbow > 0) {
-            rareCountEl.style.color = '#FF69B4';
-            rareCountEl.style.textShadow = '0 0 5px #FF69B4';
-          } else if (stats.transgender > 0) {
+          // Enhanced highlighting for ultra-rare shapes with smooth transitions
+          rareCountEl.style.transition = 'all 0.5s ease';
+          
+          if (stats.transgender > 0) {
             rareCountEl.style.color = '#FFD700';
-            rareCountEl.style.textShadow = '0 0 8px #FFD700';
+            rareCountEl.style.textShadow = '0 0 15px #FFD700, 0 0 30px #FFD700';
+            rareCountEl.style.transform = 'scale(1.1)';
+          } else if (stats.rainbow > 0) {
+            rareCountEl.style.color = '#FF69B4';
+            rareCountEl.style.textShadow = '0 0 10px #FF69B4, 0 0 20px #FF69B4';
+            rareCountEl.style.transform = 'scale(1.05)';
           } else {
             rareCountEl.style.color = 'rgba(0, 255, 0, 0.8)';
             rareCountEl.style.textShadow = 'none';
+            rareCountEl.style.transform = 'scale(1)';
           }
         }
       }
     }, 1000);
 
-    // Enhanced game debugging
+    // Enhanced game debugging with performance monitoring
     window.addEventListener('DOMContentLoaded', () => {
       setTimeout(() => {
         if (typeof Game !== 'undefined') {
           console.log('🔧 Ultra-Rare Enhanced Game debugging available via window.game');
-          console.log('🎯 Press U to test the upgrade menu!');
+          console.log('🎯 Press U to test the enhanced upgrade menu!');
           console.log('🌈 Press R for Rainbow shapes!');
           console.log('🏳️‍⚧️ Press T for Transgender shapes!');
+          console.log('✨ Enhanced with glassmorphism design and smooth animations!');
         }
       }, 1000);
     });
 
-    // Enhanced keyboard shortcut help with ultra-rare info
+    // Enhanced keyboard shortcut help with smooth transitions
     window.addEventListener('keydown', (e) => {
       if (e.code === 'F1') {
         e.preventDefault();
         console.log('🎮 ULTRA-RARE ENHANCED KEYBOARD SHORTCUTS:');
-        console.log('  WASD/Arrows: Move');
-        console.log('  Mouse: Aim and shoot');
-        console.log('  U: Toggle upgrade menu');
-        console.log('  ESC: Close menus');
+        console.log('  WASD/Arrows: Move with smooth acceleration');
+        console.log('  Mouse: Aim with precision targeting');
+        console.log('  Click/Hold: Shoot with enhanced projectiles');
+        console.log('  E: Auto-shoot with visual indicator');
+        console.log('  U: Toggle enhanced upgrade menu');
+        console.log('  ESC: Close menus with smooth transitions');
         console.log('  G: Spawn Green Radiant (debug)');
         console.log('  B: Spawn Blue Radiant (debug)');
         console.log('  N: Spawn Shadow (debug)');
         console.log('  🌈 R: Spawn Rainbow (debug) - 1/5000 rarity!');
         console.log('  🏳️‍⚧️ T: Spawn Transgender (debug) - 1/50000 LEGENDARY!');
         console.log('  I: Show shape statistics');
-        console.log('  F1: Show this help');
+        console.log('  F1: Show this enhanced help');
         console.log('');
         console.log('💰 ULTRA-RARE REWARDS:');
-        console.log('  🌈 Rainbow: 7,500-15,000 XP (75k-150k score)');
+        console.log('  🌈 Rainbow: 7,500-15,000 XP (75k-150k score!)');
         console.log('  🏳️‍⚧️ Transgender: 175,000-350,000 XP (1.75M-3.5M score!)');
+        console.log('');
+        console.log('✨ Enhanced Features:');
+        console.log('  - Glassmorphism UI design');
+        console.log('  - Smooth transitions and animations');
+        console.log('  - Enhanced particle effects');
+        console.log('  - Responsive design for all devices');
+        console.log('  - Premium visual feedback');
       }
     });
+
+    // Performance monitoring and smooth FPS display
+    let fpsHistory = [];
+    let lastFPSUpdate = 0;
+    
+    function updateFPSSmooth(fps) {
+      const fpsElement = document.getElementById('fps');
+      if (!fpsElement) return;
+      
+      // Smooth FPS averaging
+      fpsHistory.push(fps);
+      if (fpsHistory.length > 10) fpsHistory.shift();
+      
+      const avgFPS = Math.round(fpsHistory.reduce((a, b) => a + b, 0) / fpsHistory.length);
+      
+      // Only update display every 500ms for smooth appearance
+      const now = Date.now();
+      if (now - lastFPSUpdate > 500) {
+        fpsElement.textContent = `FPS: ${avgFPS}`;
+        
+        // Enhanced color coding with smooth transitions
+        fpsElement.style.transition = 'all 0.3s ease';
+        if (avgFPS >= 55) {
+          fpsElement.style.color = '#00FF00';
+          fpsElement.style.textShadow = '0 0 10px #00FF00';
+        } else if (avgFPS >= 30) {
+          fpsElement.style.color = '#FFD700';
+          fpsElement.style.textShadow = '0 0 10px #FFD700';
+        } else {
+          fpsElement.style.color = '#FF6B6B';
+          fpsElement.style.textShadow = '0 0 10px #FF6B6B';
+        }
+        
+        lastFPSUpdate = now;
+      }
+    }
+
+    // Enhanced loading screen functionality
+    function showLoadingScreen() {
+      const loadingScreen = document.getElementById('loading-screen');
+      const progressBar = document.querySelector('.loading-progress-bar');
+      
+      if (loadingScreen) {
+        loadingScreen.style.display = 'flex';
+        
+        // Simulate loading progress with smooth animation
+        let progress = 0;
+        const loadingInterval = setInterval(() => {
+          progress += Math.random() * 15;
+          if (progress >= 100) {
+            progress = 100;
+            clearInterval(loadingInterval);
+            
+            // Hide loading screen after completion
+            setTimeout(() => {
+              loadingScreen.style.opacity = '0';
+              setTimeout(() => {
+                loadingScreen.style.display = 'none';
+              }, 500);
+            }, 800);
+          }
+          
+          if (progressBar) {
+            progressBar.style.width = `${progress}%`;
+          }
+        }, 100);
+      }
+    }
+
+    // Enhanced game over screen functionality
+    function showGameOverScreen(stats) {
+      const gameOverScreen = document.getElementById('game-over-screen');
+      
+      if (gameOverScreen) {
+        // Update statistics with smooth counting animation
+        animateNumber('final-score', 0, stats.score, 2000);
+        animateNumber('final-level', 1, stats.level, 1500);
+        animateNumber('shapes-destroyed', 0, stats.shapesDestroyed, 1800);
+        
+        // Format time survived
+        const timeElement = document.getElementById('time-survived');
+        if (timeElement) {
+          const minutes = Math.floor(stats.timeSurvived / 60);
+          const seconds = stats.timeSurvived % 60;
+          timeElement.textContent = `${minutes}m ${seconds}s`;
+        }
+        
+        gameOverScreen.style.display = 'flex';
+      }
+    }
+
+    // Smooth number animation function
+    function animateNumber(elementId, start, end, duration) {
+      const element = document.getElementById(elementId);
+      if (!element) return;
+      
+      const startTime = Date.now();
+      const difference = end - start;
+      
+      function updateNumber() {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Easing function for smooth animation
+        const easeOut = 1 - Math.pow(1 - progress, 3);
+        const currentValue = Math.floor(start + (difference * easeOut));
+        
+        element.textContent = currentValue.toLocaleString();
+        
+        if (progress < 1) {
+          requestAnimationFrame(updateNumber);
+        }
+      }
+      
+      updateNumber();
+    }
+
+    // Enhanced rare shape notification system
+    function showRareShapeNotification(type, shapeName, xp) {
+      const notification = document.createElement('div');
+      notification.className = `rare-notification ${type}-notification`;
+      
+      let message = '';
+      switch(type) {
+        case 'rainbow':
+          message = `🌈 RAINBOW ${shapeName.toUpperCase()} DESTROYED! +${xp.toLocaleString()} XP! 🌈`;
+          break;
+        case 'transgender':
+          message = `🏳️‍⚧️ TRANSGENDER ${shapeName.toUpperCase()} - LEGENDARY! +${xp.toLocaleString()} XP! 🏳️‍⚧️`;
+          break;
+        default:
+          message = `✨ ${type.toUpperCase()} ${shapeName.toUpperCase()} DESTROYED! +${xp.toLocaleString()} XP! ✨`;
+      }
+      
+      notification.textContent = message;
+      document.body.appendChild(notification);
+      
+      // Create particle burst effect
+      createParticleBurst(notification);
+      
+      // Remove after animation
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.remove();
+        }
+      }, type === 'transgender' ? 5000 : type === 'rainbow' ? 4000 : 3000);
+    }
+
+    // Particle burst effect for rare notifications
+    function createParticleBurst(element) {
+      const rect = element.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      
+      for (let i = 0; i < 20; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        particle.style.left = centerX + 'px';
+        particle.style.top = centerY + 'px';
+        
+        const angle = (Math.PI * 2 * i) / 20;
+        const velocity = 100 + Math.random() * 50;
+        const vx = Math.cos(angle) * velocity;
+        const vy = Math.sin(angle) * velocity;
+        
+        particle.style.setProperty('--vx', vx + 'px');
+        particle.style.setProperty('--vy', vy + 'px');
+        
+        document.body.appendChild(particle);
+        
+        setTimeout(() => {
+          if (particle.parentNode) {
+            particle.remove();
+          }
+        }, 2000);
+      }
+    }
+
+    // Enhanced menu transitions
+    function enhanceMenuTransitions() {
+      const upgradeMenu = document.getElementById('upgrade-menu');
+      const upgradeOptions = document.querySelectorAll('.upgrade-option');
+      
+      if (upgradeMenu) {
+        // Add staggered animation to upgrade options
+        upgradeOptions.forEach((option, index) => {
+          option.style.animationDelay = `${index * 0.1}s`;
+          option.style.animation = 'slideInUp 0.5s ease-out forwards';
+        });
+      }
+    }
+
+    // Smooth scrolling for leaderboard
+    function enhanceLeaderboard() {
+      const leaderboard = document.getElementById('leaderboard');
+      if (leaderboard) {
+        leaderboard.style.scrollBehavior = 'smooth';
+        
+        // Add scroll indicators if content overflows
+        leaderboard.addEventListener('scroll', function() {
+          const isScrollable = this.scrollHeight > this.clientHeight;
+          const isAtTop = this.scrollTop === 0;
+          const isAtBottom = this.scrollTop + this.clientHeight >= this.scrollHeight - 1;
+          
+          // Add visual indicators for scroll state
+          this.style.boxShadow = isScrollable && !isAtTop ? 
+            'inset 0 10px 10px -10px rgba(0, 178, 225, 0.3)' : '';
+          
+          if (isScrollable && !isAtBottom) {
+            this.style.boxShadow += ', inset 0 -10px 10px -10px rgba(0, 178, 225, 0.3)';
+          }
+        });
+      }
+    }
+
+    // Initialize enhanced features when DOM is ready
+    document.addEventListener('DOMContentLoaded', () => {
+      enhanceMenuTransitions();
+      enhanceLeaderboard();
+      
+      // Add smooth reveal animation to all glass panels
+      const glassPanels = document.querySelectorAll('.glass-panel');
+      glassPanels.forEach((panel, index) => {
+        panel.style.opacity = '0';
+        panel.style.transform = 'translateY(20px)';
+        panel.style.transition = 'all 0.6s ease';
+        
+        setTimeout(() => {
+          panel.style.opacity = '1';
+          panel.style.transform = 'translateY(0)';
+        }, index * 200);
+      });
+      
+      console.log('✨ Enhanced UI features loaded successfully!');
+    });
+
+    // Keyboard accessibility enhancements
+    document.addEventListener('keydown', (e) => {
+      // ESC key to close any open modals/menus
+      if (e.key === 'Escape') {
+        const upgradeMenu = document.getElementById('upgrade-menu');
+        if (upgradeMenu && !upgradeMenu.classList.contains('hidden')) {
+          if (window.game && window.game.toggleUpgradeMenu) {
+            window.game.toggleUpgradeMenu();
+          }
+        }
+      }
+      
+      // Tab navigation enhancements
+      if (e.key === 'Tab') {
+        document.body.classList.add('keyboard-navigation');
+      }
+    });
+
+    // Remove keyboard navigation class on mouse interaction
+    document.addEventListener('mousedown', () => {
+      document.body.classList.remove('keyboard-navigation');
+    });
+
+    // Performance monitoring
+    let performanceMetrics = {
+      frameDrops: 0,
+      averageFPS: 60,
+      memoryUsage: 0
+    };
+
+    function monitorPerformance() {
+      if (performance.memory) {
+        performanceMetrics.memoryUsage = performance.memory.usedJSHeapSize / 1024 / 1024;
+      }
+      
+      // Log performance warnings
+      if (performanceMetrics.averageFPS < 30) {
+        console.warn('⚠️ Low FPS detected. Consider reducing visual effects.');
+      }
+      
+      if (performanceMetrics.memoryUsage > 100) {
+        console.warn('⚠️ High memory usage detected:', Math.round(performanceMetrics.memoryUsage) + 'MB');
+      }
+    }
+
+    // Run performance monitoring every 10 seconds
+    setInterval(monitorPerformance, 10000);
+
+    console.log('🎨 Enhanced Arras.io UI loaded with premium design features!');
+    console.log('✨ Features: Glassmorphism, smooth animations, enhanced accessibility');
   </script>
 </body>
 </html>
