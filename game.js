@@ -6,8 +6,8 @@
 // ==================== GAME CONFIGURATION ====================
 const CONFIG = {
   // World settings
-  WORLD_WIDTH: 1500,
-  WORLD_HEIGHT: 1200,
+  WORLD_WIDTH: 30000,
+  WORLD_HEIGHT: 30000,
   GRID_SIZE: 50,
   
   // Player settings
