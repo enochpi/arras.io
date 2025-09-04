@@ -10,7 +10,7 @@ class ShapeSystem {
     this.worldHeight = worldHeight;
     this.shapes = [];
     this.maxShapes = 250;
-    this.spawnRate = 1000; // milliseconds
+    this.spawnRate = 200; // milliseconds
     this.lastSpawnTime = Date.now();
     this.shapeIdCounter = 0;
     

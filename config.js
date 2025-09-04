@@ -1,5 +1,5 @@
 /**
- * Game Configuration File - EXPANDED to 10000x10000 World!
+ * Game Configuration File
  * Resolves server/client mismatch by establishing single-player mode as default
  * 
  * This file centralizes all game configuration to prevent conflicts between
@@ -14,10 +14,10 @@ const GAME_CONFIG = {
   
   // ==================== WORLD CONFIGURATION ====================
   WORLD: {
-    // MASSIVE WORLD SIZE - 10000x10000 for epic gameplay!
+    // Standardized world size - EXPANDED to 6000x6000 for larger play area
     WIDTH: 10000,
     HEIGHT: 10000,
-    GRID_SIZE: 100,  // Increased grid size for better performance at this scale
+    GRID_SIZE: 50,
     
     // Boundary settings
     BOUNDARY_DAMAGE: 5,      // Damage when hitting world edge
@@ -28,7 +28,7 @@ const GAME_CONFIG = {
   PLAYER: {
     // Starting stats
     DEFAULT_SIZE: 30,
-    DEFAULT_SPEED: 4,        // Slightly faster for the larger world
+    DEFAULT_SPEED: 3,
     DEFAULT_HEALTH: 100,
     DEFAULT_REGEN_RATE: 0.1,
     
@@ -46,9 +46,9 @@ const GAME_CONFIG = {
   // ==================== PROJECTILE CONFIGURATION ====================
   PROJECTILE: {
     DEFAULT_SIZE: 10,
-    DEFAULT_SPEED: 10,       // Faster projectiles for larger world
+    DEFAULT_SPEED: 8,
     DEFAULT_DAMAGE: 20,
-    DEFAULT_LIFETIME: 3000,  // Longer lifetime for larger distances
+    DEFAULT_LIFETIME: 2000,  // milliseconds
     
     // Fire rates (milliseconds between shots)
     FIRE_RATE: {
@@ -60,8 +60,8 @@ const GAME_CONFIG = {
   
   // ==================== SHAPES/ENEMY CONFIGURATION ====================
   SHAPES: {
-    MAX_SHAPES: 400,  // Much more shapes for the massive world!
-    SPAWN_RATE: 800,  // Faster spawning to populate the large area
+    MAX_SHAPES: 150,  // Increased for larger world
+    SPAWN_RATE: 1500, // Faster spawning for larger world
     
     // Shape definitions with consistent stats
     TYPES: {
@@ -71,7 +71,7 @@ const GAME_CONFIG = {
         health: 30,
         xp: 10,
         color: '#FF6B6B',
-        speed: 1.2,      // Slightly faster for more dynamic gameplay
+        speed: 1,
         damage: 5
       },
       square: {
@@ -80,7 +80,7 @@ const GAME_CONFIG = {
         health: 50,
         xp: 20,
         color: '#FFE66D',
-        speed: 1.0,
+        speed: 0.8,
         damage: 8
       },
       pentagon: {
@@ -89,7 +89,7 @@ const GAME_CONFIG = {
         health: 80,
         xp: 35,
         color: '#4ECDC4',
-        speed: 0.8,
+        speed: 0.6,
         damage: 10
       },
       hexagon: {
@@ -98,27 +98,8 @@ const GAME_CONFIG = {
         health: 120,
         xp: 50,
         color: '#A8E6CF',
-        speed: 0.6,
+        speed: 0.4,
         damage: 15
-      },
-      // NEW: Boss shapes for the expanded world
-      octagon: {
-        sides: 8,
-        size: 60,
-        health: 200,
-        xp: 100,
-        color: '#FF69B4',
-        speed: 0.3,
-        damage: 25
-      },
-      decagon: {
-        sides: 10,
-        size: 80,
-        health: 350,
-        xp: 200,
-        color: '#8A2BE2',
-        speed: 0.2,
-        damage: 40
       }
     }
   },
@@ -141,26 +122,18 @@ const GAME_CONFIG = {
   
   // ==================== PERFORMANCE CONFIGURATION ====================
   PERFORMANCE: {
-    // Rendering optimizations for massive world
+    // Rendering optimizations
     ENABLE_PARTICLES: true,
-    MAX_PARTICLES: 150,      // More particles for epic effects
+    MAX_PARTICLES: 100,
     ENABLE_SHADOWS: true,
     ENABLE_ANTIALIAS: true,
     
-    // Viewport culling margins (critical for 10000x10000 performance)
-    CULL_MARGIN: 200,        // Larger culling margin
-    RENDER_DISTANCE: 1500,   // Maximum render distance
+    // Viewport culling margins
+    CULL_MARGIN: 100,
     
     // FPS limits
     TARGET_FPS: 60,
-    MIN_FPS: 30,
-    
-    // LOD (Level of Detail) settings for massive world
-    LOD_DISTANCES: {
-      HIGH: 500,    // Full detail within 500 units
-      MEDIUM: 1000, // Reduced detail 500-1000 units
-      LOW: 1500     // Minimal detail 1000-1500 units
-    }
+    MIN_FPS: 30
   },
   
   // ==================== UI CONFIGURATION ====================
@@ -170,20 +143,15 @@ const GAME_CONFIG = {
     SHOW_MINIMAP: true,
     SHOW_LEADERBOARD: true,
     SHOW_CONTROLS: true,
-    SHOW_COORDINATES: true,  // Show player coordinates for navigation
     
-    // Minimap settings (adjusted for massive world)
-    MINIMAP_SIZE: 200,       // Larger minimap for better navigation
-    MINIMAP_ZOOM: 0.02,      // Much smaller zoom level for 10000x10000
+    // Minimap settings
+    MINIMAP_SIZE: 180,
+    MINIMAP_ZOOM: 0.1,
     
     // Notification settings
     NOTIFICATION_DURATION: 3000,
     LEVEL_UP_NOTIFICATION: true,
-    KILL_NOTIFICATION: true,
-    
-    // Navigation aids for large world
-    SHOW_COMPASS: true,
-    SHOW_REGION_NAMES: true
+    KILL_NOTIFICATION: true
   },
   
   // ==================== CONTROL CONFIGURATION ====================
@@ -201,30 +169,9 @@ const GAME_CONFIG = {
     TOGGLE_MAP: 'KeyM',
     TOGGLE_STATS: 'Tab',
     
-    // New navigation keys for large world
-    SPRINT: 'ShiftLeft',     // Sprint mode for faster movement
-    TELEPORT_HOME: 'KeyH',   // Return to spawn point
-    
     // Mouse settings
     AIM_WITH_MOUSE: true,
     INVERT_Y_AXIS: false
-  },
-  
-  // ==================== REGIONS SYSTEM (NEW for 10000x10000) ====================
-  REGIONS: {
-    // Divide the massive world into regions for better organization
-    REGION_SIZE: 2000,       // Each region is 2000x2000
-    REGIONS: {
-      CENTER: { x: 5000, y: 5000, name: 'Central Plains', difficulty: 1 },
-      NORTH: { x: 5000, y: 1000, name: 'Northern Wastes', difficulty: 3 },
-      SOUTH: { x: 5000, y: 9000, name: 'Southern Marshes', difficulty: 3 },
-      EAST: { x: 9000, y: 5000, name: 'Eastern Peaks', difficulty: 4 },
-      WEST: { x: 1000, y: 5000, name: 'Western Forests', difficulty: 4 },
-      NORTHEAST: { x: 8000, y: 2000, name: 'Frozen Tundra', difficulty: 5 },
-      NORTHWEST: { x: 2000, y: 2000, name: 'Mystic Valley', difficulty: 5 },
-      SOUTHEAST: { x: 8000, y: 8000, name: 'Volcanic Fields', difficulty: 5 },
-      SOUTHWEST: { x: 2000, y: 8000, name: 'Dark Swamps', difficulty: 5 }
-    }
   },
   
   // ==================== AUDIO CONFIGURATION ====================
@@ -240,10 +187,8 @@ const GAME_CONFIG = {
     ENABLED: false,
     SHOW_COLLISION_BOXES: false,
     SHOW_VELOCITIES: false,
-    SHOW_COORDINATES: true,      // Useful for massive world navigation
+    SHOW_COORDINATES: false,
     SHOW_NETWORK_STATS: false,
-    SHOW_PERFORMANCE_STATS: true, // Important for large world performance
-    SHOW_REGION_BORDERS: false,
     LOG_LEVEL: 'warn' // 'error', 'warn', 'info', 'debug'
   }
 };
@@ -330,34 +275,9 @@ function debugLog(message, level = 'info') {
 }
 
 /**
- * Get current region based on position
- */
-function getCurrentRegion(x, y) {
-  const regions = GAME_CONFIG.REGIONS.REGIONS;
-  const regionSize = GAME_CONFIG.REGIONS.REGION_SIZE;
-  
-  // Find the closest region center
-  let closestRegion = null;
-  let closestDistance = Infinity;
-  
-  for (const [key, region] of Object.entries(regions)) {
-    const distance = Math.sqrt(
-      Math.pow(x - region.x, 2) + Math.pow(y - region.y, 2)
-    );
-    
-    if (distance < closestDistance) {
-      closestDistance = distance;
-      closestRegion = { ...region, key };
-    }
-  }
-  
-  return closestRegion;
-}
-
-/**
  * Apply configuration overrides from URL parameters
  * Useful for testing different configurations without changing code
- * Example: game.html?mode=multiplayer&debug=true&world_width=10000
+ * Example: game.html?mode=multiplayer&debug=true&world_width=6000
  */
 function applyURLConfigOverrides() {
   const params = new URLSearchParams(window.location.search);
@@ -399,15 +319,6 @@ function applyURLConfigOverrides() {
     GAME_CONFIG.NETWORK.SERVER_URL = params.get('server');
     console.log(`Server URL set to: ${GAME_CONFIG.NETWORK.SERVER_URL}`);
   }
-  
-  // Performance testing overrides
-  if (params.has('max_shapes')) {
-    const maxShapes = parseInt(params.get('max_shapes'));
-    if (!isNaN(maxShapes) && maxShapes > 0) {
-      GAME_CONFIG.SHAPES.MAX_SHAPES = maxShapes;
-      console.log(`Max shapes set to: ${maxShapes}`);
-    }
-  }
 }
 
 // ==================== INITIALIZATION ====================
@@ -423,18 +334,13 @@ if (typeof window !== 'undefined') {
   window.isMultiplayer = isMultiplayer;
   window.getWorldBounds = getWorldBounds;
   window.getShapeConfig = getShapeConfig;
-  window.getCurrentRegion = getCurrentRegion;
   window.debugLog = debugLog;
   
-  console.log('🌍 MASSIVE WORLD Game Configuration Loaded:', {
+  console.log('Game Configuration Loaded:', {
     mode: GAME_CONFIG.MODE,
     world: `${GAME_CONFIG.WORLD.WIDTH}x${GAME_CONFIG.WORLD.HEIGHT}`,
-    regions: Object.keys(GAME_CONFIG.REGIONS.REGIONS).length,
-    maxShapes: GAME_CONFIG.SHAPES.MAX_SHAPES,
     debug: GAME_CONFIG.DEBUG.ENABLED
   });
-  
-  console.log('🚀 Epic 10000x10000 world ready for exploration!');
 }
 
 // Export for Node.js/module environments
@@ -447,7 +353,6 @@ if (typeof module !== 'undefined' && module.exports) {
     getWorldBounds,
     getShapeConfig,
     getControlKey,
-    getCurrentRegion,
     isDebugMode,
     debugLog
   };

@@ -6,26 +6,26 @@
 // ==================== GAME CONFIGURATION ====================
 const CONFIG = {
   // World settings
-  WORLD_WIDTH: 10000,
-  WORLD_HEIGHT: 10000,
+  WORLD_WIDTH: 1500,
+  WORLD_HEIGHT: 1200,
   GRID_SIZE: 50,
   
   // Player settings
   PLAYER_SIZE: 30,
-  PLAYER_SPEED: 3,
+  PLAYER_SPEED: 5,
   PLAYER_MAX_HEALTH: 100,
   PLAYER_REGEN_RATE: 0.1,
   
   // Projectile settings
-  BULLET_SIZE: 10,
-  BULLET_SPEED: 8,
+  BULLET_SIZE: 12,
+  BULLET_SPEED: 10,
   BULLET_DAMAGE: 20,
   FIRE_RATE: 200, // milliseconds
-  BULLET_LIFETIME: 2000, // milliseconds
+  BULLET_LIFETIME: 7000, // milliseconds
   
   // Shape settings
-  MAX_SHAPES: 250,
-  SHAPE_SPAWN_RATE: 5000, // milliseconds
+  MAX_SHAPES: 50000,
+  SHAPE_SPAWN_RATE: 200, // milliseconds
 };
 
 // ==================== GAME STATE ====================
