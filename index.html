@@ -192,9 +192,9 @@
       color: #00FF00;
     }
 
-    /* Upgrade menu */
+    /* Upgrade menu - FIXED */
     #upgrade-menu {
-      position: absolute;
+      position: fixed;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
@@ -202,13 +202,19 @@
       border: 3px solid #00B2E1;
       border-radius: 15px;
       padding: 30px;
-      display: none;
+      display: none; /* Hidden by default */
       z-index: 100;
       min-width: 400px;
+      pointer-events: auto;
+      box-shadow: 0 10px 50px rgba(0, 0, 0, 0.8);
     }
 
+    #upgrade-menu:not(.hidden) {
+      display: block !important; /* Force show when not hidden */
+    }
+    
     #upgrade-menu.hidden {
-      display: none !important;
+      display: none !important; /* Force hide when hidden */
     }
 
     #upgrade-menu h2 {
@@ -292,6 +298,51 @@
         transform: translate(-50%, -50%) scale(1);
       }
     }
+
+    /* Close button styles */
+    .close-button {
+      background: #FF4444 !important;
+      border: none !important;
+      color: white !important;
+      padding: 8px 12px !important;
+      border-radius: 5px !important;
+      cursor: pointer !important;
+      font-size: 14px !important;
+      font-weight: bold !important;
+      transition: background 0.3s ease !important;
+    }
+
+    .close-button:hover {
+      background: #FF6666 !important;
+    }
+
+    /* Instructions text */
+    .menu-instructions {
+      text-align: center;
+      margin-top: 15px;
+      color: #AAA;
+      font-size: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding-top: 15px;
+    }
+
+    /* No points message */
+    #no-points-message {
+      text-align: center;
+      padding: 20px;
+      color: #FFD700;
+      font-size: 18px;
+      background: rgba(255, 215, 0, 0.1);
+      border-radius: 10px;
+      border: 2px solid rgba(255, 215, 0, 0.3);
+    }
+
+    #no-points-message small {
+      color: #AAA;
+      font-size: 14px;
+      display: block;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
@@ -327,6 +378,7 @@
         <div><strong>B:</strong> Spawn Blue Radiant ✨</div>
         <div><strong>N:</strong> Spawn Shadow ☠️</div>
         <div><strong>I:</strong> Show Statistics</div>
+        <div><strong>U:</strong> Upgrade Menu 🔧</div>
         <div id="shape-count">Shapes: 0</div>
         <div id="rare-count">Rare: 0</div>
       </div>
@@ -337,40 +389,49 @@
         <div><strong>WASD/Arrows:</strong> Move</div>
         <div><strong>Mouse:</strong> Aim</div>
         <div><strong>Click/Hold:</strong> Shoot</div>
-        <div><strong>U:</strong> Upgrades</div>
+        <div><strong>U:</strong> Upgrades Menu</div>
+        <div><strong>ESC:</strong> Close Menu</div>
       </div>
 
       <!-- FPS counter -->
       <div id="fps">FPS: 0</div>
       
-      <!-- Upgrade menu (hidden by default) -->
+      <!-- Upgrade menu (hidden by default) - COMPLETELY FIXED -->
       <div id="upgrade-menu" class="hidden">
-        <h2>Choose Upgrade</h2>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h2 style="margin: 0; color: #FFD700;">🎯 Choose Upgrade</h2>
+          <button class="close-button" onclick="window.game?.toggleUpgradeMenu?.()">✕ Close</button>
+        </div>
+        
         <div id="upgrade-options">
           <div class="upgrade-option" data-upgrade="health">
-            <h4>Max Health</h4>
+            <h4>💚 Max Health</h4>
             <p>+20 HP capacity</p>
           </div>
           <div class="upgrade-option" data-upgrade="damage">
-            <h4>Damage</h4>
+            <h4>💥 Damage</h4>
             <p>+25% bullet damage</p>
           </div>
           <div class="upgrade-option" data-upgrade="reload">
-            <h4>Reload Speed</h4>
+            <h4>⚡ Reload Speed</h4>
             <p>+20% fire rate</p>
           </div>
           <div class="upgrade-option" data-upgrade="speed">
-            <h4>Movement Speed</h4>
+            <h4>🏃 Movement Speed</h4>
             <p>+15% tank speed</p>
           </div>
           <div class="upgrade-option" data-upgrade="regen">
-            <h4>Regeneration</h4>
+            <h4>🩹 Regeneration</h4>
             <p>+50% health regen</p>
           </div>
           <div class="upgrade-option" data-upgrade="bulletSpeed">
-            <h4>Bullet Speed</h4>
+            <h4>🚀 Bullet Speed</h4>
             <p>+20% projectile velocity</p>
           </div>
+        </div>
+        
+        <div class="menu-instructions">
+          Press <strong>U</strong> or <strong>ESC</strong> to close • Click an upgrade to apply
         </div>
       </div>
       
@@ -386,7 +447,7 @@
   <!-- 2. Canvas manager for cross-browser compatibility -->
   <script src="canvas-manager.js"></script>
   
-  <!-- 3. Shape System (THIS WAS MISSING!) -->
+  <!-- 3. Shape System (CRITICAL!) -->
   <script src="shape-system.js"></script>
   
   <!-- 4. Collision system -->
@@ -403,9 +464,14 @@
     setInterval(() => {
       if (window.game && window.game.state && window.game.state.shapeSystem) {
         const stats = window.game.state.shapeSystem.getStatistics();
-        document.getElementById('shape-count').textContent = `Shapes: ${stats.total}`;
-        const rareCount = stats.greenRadiant + stats.blueRadiant + stats.shadow;
-        document.getElementById('rare-count').textContent = `Rare: ${rareCount}`;
+        const shapeCountEl = document.getElementById('shape-count');
+        const rareCountEl = document.getElementById('rare-count');
+        
+        if (shapeCountEl) shapeCountEl.textContent = `Shapes: ${stats.total}`;
+        if (rareCountEl) {
+          const rareCount = (stats.greenRadiant || 0) + (stats.blueRadiant || 0) + (stats.shadow || 0);
+          rareCountEl.textContent = `Rare: ${rareCount}`;
+        }
       }
     }, 1000);
 
@@ -414,8 +480,26 @@
       setTimeout(() => {
         if (typeof Game !== 'undefined') {
           console.log('🔧 Game debugging available via window.game');
+          console.log('🎯 Press U to test the upgrade menu!');
         }
       }, 1000);
+    });
+
+    // Add keyboard shortcut help
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'F1') {
+        e.preventDefault();
+        console.log('🎮 KEYBOARD SHORTCUTS:');
+        console.log('  WASD/Arrows: Move');
+        console.log('  Mouse: Aim and shoot');
+        console.log('  U: Toggle upgrade menu');
+        console.log('  ESC: Close menus');
+        console.log('  G: Spawn Green Radiant (debug)');
+        console.log('  B: Spawn Blue Radiant (debug)');
+        console.log('  N: Spawn Shadow (debug)');
+        console.log('  I: Show shape statistics');
+        console.log('  F1: Show this help');
+      }
     });
   </script>
 </body>

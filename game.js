@@ -1,6 +1,6 @@
 /**
- * Arras.io Single-Player Game - Enhanced with Amazing Rare Shape Visuals
- * Features smooth Green Radiant, Blue Radiant, and proximity-based Shadow shapes
+ * Arras.io Single-Player Game - Fixed Version
+ * Smooth shadow fade-in and stable rare shape destruction
  */
 
 // ==================== GAME CONFIGURATION ====================
@@ -244,24 +244,40 @@ class Game {
         this.toggleUpgradeMenu();
       }
       
-      // Debug keys for spawning rare shapes (less verbose logging)
+      // Debug keys for spawning rare shapes (safe versions)
       if (e.code === 'KeyG' && this.state.shapeSystem) {
-        const shape = this.state.shapeSystem.spawnRareShape('greenRadiant', this.state.player);
-        if (shape) this.showRareNotification('Green Radiant spawned! ⭐');
+        try {
+          const shape = this.state.shapeSystem.spawnRareShape('greenRadiant', this.state.player);
+          if (shape) this.showRareNotification('Green Radiant spawned! ⭐');
+        } catch (error) {
+          console.error('Error spawning Green Radiant:', error);
+        }
       }
       if (e.code === 'KeyB' && this.state.shapeSystem) {
-        const shape = this.state.shapeSystem.spawnRareShape('blueRadiant', this.state.player);
-        if (shape) this.showRareNotification('Blue Radiant spawned! ✨');
+        try {
+          const shape = this.state.shapeSystem.spawnRareShape('blueRadiant', this.state.player);
+          if (shape) this.showRareNotification('Blue Radiant spawned! ✨');
+        } catch (error) {
+          console.error('Error spawning Blue Radiant:', error);
+        }
       }
       if (e.code === 'KeyN' && this.state.shapeSystem) {
-        const shape = this.state.shapeSystem.spawnRareShape('shadow', this.state.player);
-        if (shape) this.showRareNotification('Shadow spawned! ☠️');
+        try {
+          const shape = this.state.shapeSystem.spawnRareShape('shadow', this.state.player);
+          if (shape) this.showRareNotification('Shadow spawned! ☠️');
+        } catch (error) {
+          console.error('Error spawning Shadow:', error);
+        }
       }
       
-      // Show stats (less frequent)
+      // Show stats
       if (e.code === 'KeyI' && this.state.shapeSystem) {
-        const stats = this.state.shapeSystem.getStatistics();
-        console.log('📊 Current shape statistics:', stats);
+        try {
+          const stats = this.state.shapeSystem.getStatistics();
+          console.log('📊 Current shape statistics:', stats);
+        } catch (error) {
+          console.error('Error getting statistics:', error);
+        }
       }
     });
     
@@ -354,15 +370,24 @@ class Game {
       this.state.shapes = this.state.shapeSystem.getAllShapes();
     }
     
-    // Update particles
-    if (this.state.collisionSystem) {
-      this.state.collisionSystem.updateParticles(this.state.particles, deltaTime);
-    } else {
-      this.state.particles = this.state.particles.filter(p => p.update(deltaTime));
+    // Update particles (with error handling)
+    try {
+      if (this.state.collisionSystem) {
+        this.state.collisionSystem.updateParticles(this.state.particles, deltaTime);
+      } else {
+        this.state.particles = this.state.particles.filter(p => p.update(deltaTime));
+      }
+    } catch (error) {
+      console.error('Error updating particles:', error);
+      this.state.particles = []; // Clear particles if error occurs
     }
     
-    // Check collisions
-    this.checkCollisions();
+    // Check collisions (with error handling)
+    try {
+      this.checkCollisions();
+    } catch (error) {
+      console.error('Error in collision detection:', error);
+    }
     
     // Player regeneration
     if (this.state.player.health < this.state.player.maxHealth) {
@@ -444,31 +469,43 @@ class Game {
   
   checkCollisions() {
     if (this.state.collisionSystem) {
-      // Use the enhanced collision system
-      const results = this.state.collisionSystem.handleAllCollisions(this.state);
-      
-      // Process collision results
-      for (const result of results) {
-        if (result.destroyed && result.shape) {
-          // Create particles for destroyed shape
-          this.state.collisionSystem.createCollisionParticles(result, this.state.particles);
-          
-          // Add XP with level check
-          if (result.xpAwarded > 0) {
-            this.addXP(result.xpAwarded);
-            this.state.player.score += result.xpAwarded * 10;
-            
-            // Special notifications for rare shapes (less spam)
-            if (result.rarity !== 'normal') {
-              this.showRareShapeNotification(result.rarity, result.type, result.xpAwarded);
+      // Use the enhanced collision system with error handling
+      try {
+        const results = this.state.collisionSystem.handleAllCollisions(this.state);
+        
+        // Process collision results safely
+        for (const result of results) {
+          try {
+            if (result.destroyed && result.shape) {
+              // Create particles for destroyed shape (safely)
+              if (this.state.collisionSystem.createCollisionParticles) {
+                this.state.collisionSystem.createCollisionParticles(result, this.state.particles);
+              }
+              
+              // Add XP with level check
+              if (result.xpAwarded > 0) {
+                this.addXP(result.xpAwarded);
+                this.state.player.score += result.xpAwarded * 10;
+                
+                // Special notifications for rare shapes
+                if (result.rarity !== 'normal') {
+                  this.showRareShapeNotification(result.rarity, result.type, result.xpAwarded);
+                }
+              }
             }
+            
+            // Check game over
+            if (this.state.player.health <= 0) {
+              this.gameOver();
+            }
+          } catch (error) {
+            console.error('Error processing collision result:', error);
           }
         }
-        
-        // Check game over
-        if (this.state.player.health <= 0) {
-          this.gameOver();
-        }
+      } catch (error) {
+        console.error('Error in collision system:', error);
+        // Fallback to basic collision
+        this.basicCollisionCheck();
       }
     } else {
       // Fallback to basic collision detection
@@ -477,108 +514,126 @@ class Game {
   }
   
   showRareShapeNotification(rarity, type, xp) {
-    const rarityEmoji = {
-      'greenRadiant': '⭐',
-      'blueRadiant': '✨', 
-      'shadow': '☠️'
-    };
-    
-    const rarityName = {
-      'greenRadiant': 'GREEN RADIANT',
-      'blueRadiant': 'BLUE RADIANT',
-      'shadow': 'SHADOW'
-    };
-    
-    console.log(`${rarityEmoji[rarity]} ${rarityName[rarity]} ${type.toUpperCase()} DESTROYED! +${xp} XP!`);
-    
-    // Create visual notification
-    this.createFloatingText(
-      this.state.player.x,
-      this.state.player.y - 50,
-      `${rarityEmoji[rarity]} +${xp} XP!`,
-      rarity === 'shadow' ? '#8B00FF' : rarity === 'blueRadiant' ? '#00BFFF' : '#00FF00'
-    );
+    try {
+      const rarityEmoji = {
+        'greenRadiant': '⭐',
+        'blueRadiant': '✨', 
+        'shadow': '☠️'
+      };
+      
+      const rarityName = {
+        'greenRadiant': 'GREEN RADIANT',
+        'blueRadiant': 'BLUE RADIANT',
+        'shadow': 'SHADOW'
+      };
+      
+      console.log(`${rarityEmoji[rarity]} ${rarityName[rarity]} ${type.toUpperCase()} DESTROYED! +${xp} XP!`);
+      
+      // Create visual notification safely
+      this.createFloatingText(
+        this.state.player.x,
+        this.state.player.y - 50,
+        `${rarityEmoji[rarity]} +${xp} XP!`,
+        rarity === 'shadow' ? '#8B00FF' : rarity === 'blueRadiant' ? '#00BFFF' : '#00FF00'
+      );
+    } catch (error) {
+      console.error('Error showing rare shape notification:', error);
+    }
   }
   
   showRareNotification(message) {
-    // Create temporary notification element
-    const notification = document.createElement('div');
-    notification.className = 'rare-notification';
-    notification.textContent = message;
-    document.body.appendChild(notification);
-    
-    // Remove after animation
-    setTimeout(() => {
-      notification.remove();
-    }, 2000);
+    try {
+      // Create temporary notification element
+      const notification = document.createElement('div');
+      notification.className = 'rare-notification';
+      notification.textContent = message;
+      document.body.appendChild(notification);
+      
+      // Remove after animation
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.remove();
+        }
+      }, 2000);
+    } catch (error) {
+      console.error('Error showing notification:', error);
+    }
   }
   
   createFloatingText(x, y, text, color) {
-    // Add floating text particle
-    this.state.particles.push(new Particle(
-      x, y, 0, -2, color, 16, 
-      { glow: true, fadeRate: 0.01, trail: false }
-    ));
+    try {
+      // Add floating text particle
+      this.state.particles.push(new Particle(
+        x, y, 0, -2, color, 16, 
+        { glow: true, fadeRate: 0.01, trail: false }
+      ));
+    } catch (error) {
+      console.error('Error creating floating text:', error);
+    }
   }
   
   basicCollisionCheck() {
     const player = this.state.player;
     
-    // Check projectile-shape collisions
-    for (let i = this.state.projectiles.length - 1; i >= 0; i--) {
-      const projectile = this.state.projectiles[i];
-      
-      for (let j = this.state.shapes.length - 1; j >= 0; j--) {
-        const shape = this.state.shapes[j];
-        const dx = projectile.x - shape.x;
-        const dy = projectile.y - shape.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+    try {
+      // Check projectile-shape collisions
+      for (let i = this.state.projectiles.length - 1; i >= 0; i--) {
+        const projectile = this.state.projectiles[i];
         
-        if (dist < projectile.size + shape.size) {
-          // Hit!
-          shape.health -= projectile.damage;
+        for (let j = this.state.shapes.length - 1; j >= 0; j--) {
+          const shape = this.state.shapes[j];
+          const dx = projectile.x - shape.x;
+          const dy = projectile.y - shape.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
           
-          // Create hit particles
-          for (let k = 0; k < 5; k++) {
-            this.state.particles.push(new Particle(
-              shape.x, shape.y,
-              (Math.random() - 0.5) * 5,
-              (Math.random() - 0.5) * 5,
-              shape.particleColor || shape.color,
-              Math.random() * 5 + 2
-            ));
-          }
-          
-          if (shape.health <= 0) {
-            // Shape destroyed
-            this.addXP(shape.xp);
-            player.score += shape.xp * 10;
+          if (dist < projectile.size + shape.size) {
+            // Hit!
+            shape.health -= projectile.damage;
             
-            // Show rare shape notification
-            if (shape.rarity !== 'normal') {
-              this.showRareShapeNotification(shape.rarity, shape.type, shape.xp);
-            }
-            
-            // Create destruction particles
-            for (let k = 0; k < 15; k++) {
+            // Create hit particles safely
+            for (let k = 0; k < 5; k++) {
               this.state.particles.push(new Particle(
                 shape.x, shape.y,
-                (Math.random() - 0.5) * 10,
-                (Math.random() - 0.5) * 10,
-                shape.particleColor || shape.color,
-                Math.random() * 8 + 3,
-                { glow: shape.rarity !== 'normal' }
+                (Math.random() - 0.5) * 5,
+                (Math.random() - 0.5) * 5,
+                shape.particleColor || shape.color || '#FF6B6B',
+                Math.random() * 5 + 2
               ));
             }
             
-            this.state.shapes.splice(j, 1);
+            if (shape.health <= 0) {
+              // Shape destroyed
+              this.addXP(shape.xp || 10);
+              player.score += (shape.xp || 10) * 10;
+              
+              // Show rare shape notification
+              if (shape.rarity && shape.rarity !== 'normal') {
+                this.showRareShapeNotification(shape.rarity, shape.type || 'shape', shape.xp || 10);
+              }
+              
+              // Create destruction particles safely
+              for (let k = 0; k < 15; k++) {
+                this.state.particles.push(new Particle(
+                  shape.x, shape.y,
+                  (Math.random() - 0.5) * 10,
+                  (Math.random() - 0.5) * 10,
+                  shape.particleColor || shape.color || '#FF6B6B',
+                  Math.random() * 8 + 3,
+                  { glow: shape.rarity !== 'normal' }
+                ));
+              }
+              
+              this.state.shapes.splice(j, 1);
+            }
+            
+            // Remove projectile
+            this.state.projectiles.splice(i, 1);
+            break;
           }
-          
-          // Remove projectile
-          this.state.projectiles.splice(i, 1);
-          break;
         }
       }
+    } catch (error) {
+      console.error('Error in basic collision check:', error);
     }
   }
   
@@ -593,10 +648,19 @@ class Game {
       player.xpToNext = 100 * player.level;
       player.upgradePoints += 1;
       
-      // Auto-open upgrade menu on level up
-      if (player.upgradePoints > 0) {
-        setTimeout(() => this.toggleUpgradeMenu(), 500);
-      }
+      console.log(`🎉 LEVEL UP! You are now level ${player.level}! You have ${player.upgradePoints} upgrade points.`);
+      console.log(`💡 Press 'U' to open the upgrade menu!`);
+      
+      // Show level up notification
+      this.showRareNotification(`🎉 LEVEL ${player.level}! Press U for upgrades!`);
+      
+      // Auto-open upgrade menu on level up (optional)
+      setTimeout(() => {
+        if (player.upgradePoints > 0) {
+          console.log('🔧 Auto-opening upgrade menu...');
+          this.toggleUpgradeMenu();
+        }
+      }, 1000);
     }
   }
   
@@ -608,45 +672,49 @@ class Game {
   updateUI() {
     const player = this.state.player;
     
-    // Update score and level
-    const scoreElement = document.getElementById('score');
-    const levelElement = document.getElementById('level');
-    if (scoreElement) scoreElement.textContent = player.score.toLocaleString();
-    if (levelElement) levelElement.textContent = player.level;
-    
-    // Update health bar
-    const healthFill = document.getElementById('health-fill');
-    const healthText = document.getElementById('health-text');
-    if (healthFill && healthText) {
-      const healthPercent = (player.health / player.maxHealth) * 100;
-      healthFill.style.width = `${healthPercent}%`;
-      healthText.textContent = `${Math.ceil(player.health)}/${player.maxHealth}`;
-    }
-    
-    // Update XP bar
-    const xpFill = document.getElementById('xp-fill');
-    const xpText = document.getElementById('xp-text');
-    if (xpFill && xpText) {
-      const xpPercent = (player.xp / player.xpToNext) * 100;
-      xpFill.style.width = `${xpPercent}%`;
-      xpText.textContent = `${Math.floor(player.xp)}/${player.xpToNext}`;
-    }
-
-    // Update debug stats less frequently to avoid lag
-    const now = Date.now();
-    if (now - this.lastStatsUpdate > 1000) { // Only update every second
-      if (this.state.shapeSystem) {
-        const stats = this.state.shapeSystem.getStatistics();
-        const shapeCountEl = document.getElementById('shape-count');
-        const rareCountEl = document.getElementById('rare-count');
-        
-        if (shapeCountEl) shapeCountEl.textContent = `Shapes: ${stats.total}`;
-        if (rareCountEl) {
-          const rareCount = stats.greenRadiant + stats.blueRadiant + stats.shadow;
-          rareCountEl.textContent = `Rare: ${rareCount}`;
-        }
+    try {
+      // Update score and level
+      const scoreElement = document.getElementById('score');
+      const levelElement = document.getElementById('level');
+      if (scoreElement) scoreElement.textContent = player.score.toLocaleString();
+      if (levelElement) levelElement.textContent = player.level;
+      
+      // Update health bar
+      const healthFill = document.getElementById('health-fill');
+      const healthText = document.getElementById('health-text');
+      if (healthFill && healthText) {
+        const healthPercent = (player.health / player.maxHealth) * 100;
+        healthFill.style.width = `${healthPercent}%`;
+        healthText.textContent = `${Math.ceil(player.health)}/${player.maxHealth}`;
       }
-      this.lastStatsUpdate = now;
+      
+      // Update XP bar
+      const xpFill = document.getElementById('xp-fill');
+      const xpText = document.getElementById('xp-text');
+      if (xpFill && xpText) {
+        const xpPercent = (player.xp / player.xpToNext) * 100;
+        xpFill.style.width = `${xpPercent}%`;
+        xpText.textContent = `${Math.floor(player.xp)}/${player.xpToNext}`;
+      }
+
+      // Update debug stats less frequently to avoid lag
+      const now = Date.now();
+      if (now - this.lastStatsUpdate > 1000) { // Only update every second
+        if (this.state.shapeSystem) {
+          const stats = this.state.shapeSystem.getStatistics();
+          const shapeCountEl = document.getElementById('shape-count');
+          const rareCountEl = document.getElementById('rare-count');
+          
+          if (shapeCountEl) shapeCountEl.textContent = `Shapes: ${stats.total}`;
+          if (rareCountEl) {
+            const rareCount = (stats.greenRadiant || 0) + (stats.blueRadiant || 0) + (stats.shadow || 0);
+            rareCountEl.textContent = `Rare: ${rareCount}`;
+          }
+        }
+        this.lastStatsUpdate = now;
+      }
+    } catch (error) {
+      console.error('Error updating UI:', error);
     }
   }
   
@@ -669,30 +737,34 @@ class Game {
   
   // ==================== RENDERING ====================
   render() {
-    // Clear main canvas
-    this.ctx.fillStyle = '#1a1a2e';
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    
-    // Save context for camera transform
-    this.ctx.save();
-    
-    // Apply camera transform
-    this.ctx.translate(-this.state.camera.x, -this.state.camera.y);
-    
-    // Draw grid
-    this.drawGrid();
-    
-    // Draw game objects
-    this.drawShapes();
-    this.drawProjectiles();
-    this.drawParticles();
-    this.drawPlayer();
-    
-    // Restore context
-    this.ctx.restore();
-    
-    // Draw minimap (no camera transform)
-    this.drawMinimap();
+    try {
+      // Clear main canvas
+      this.ctx.fillStyle = '#1a1a2e';
+      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+      
+      // Save context for camera transform
+      this.ctx.save();
+      
+      // Apply camera transform
+      this.ctx.translate(-this.state.camera.x, -this.state.camera.y);
+      
+      // Draw grid
+      this.drawGrid();
+      
+      // Draw game objects
+      this.drawShapes();
+      this.drawProjectiles();
+      this.drawParticles();
+      this.drawPlayer();
+      
+      // Restore context
+      this.ctx.restore();
+      
+      // Draw minimap (no camera transform)
+      this.drawMinimap();
+    } catch (error) {
+      console.error('Error in render:', error);
+    }
   }
   
   drawGrid() {
@@ -775,13 +847,19 @@ class Game {
   
   drawShapes() {
     this.state.shapes.forEach(shape => {
-      // Calculate distance to player for shadow visibility
-      const distToPlayer = Math.sqrt(
-        Math.pow(shape.x - this.state.player.x, 2) + 
-        Math.pow(shape.y - this.state.player.y, 2)
-      );
-      
-      this.drawEnhancedShape(shape, distToPlayer);
+      try {
+        // Calculate distance to player for shadow visibility
+        const distToPlayer = Math.sqrt(
+          Math.pow(shape.x - this.state.player.x, 2) + 
+          Math.pow(shape.y - this.state.player.y, 2)
+        );
+        
+        this.drawEnhancedShape(shape, distToPlayer);
+      } catch (error) {
+        console.error('Error drawing shape:', error);
+        // Draw basic shape as fallback
+        this.drawBasicShape(shape);
+      }
     });
   }
   
@@ -831,19 +909,25 @@ class Game {
       shape.color = '#87CEEB';
       
     } else if (shape.rarity === 'shadow') {
-      // Shadow: Proximity-based visibility - INVISIBLE until close!
-      const maxVisibilityDistance = 150; // Only visible within 150 pixels
-      let alpha = 1 - (distToPlayer / maxVisibilityDistance);
-      alpha = Math.max(0, Math.min(1, alpha)); // Clamp between 0 and 1
+      // Shadow: SMOOTH proximity-based visibility - MUCH MORE GRADUAL!
+      const maxVisibilityDistance = 400; // Start fading from 400 pixels away
+      const safeDistance = 100; // Fully visible within 100 pixels
       
-      if (alpha <= 0.1) {
-        // Almost completely invisible - draw just a faint outline
-        this.ctx.strokeStyle = `rgba(139, 0, 255, ${alpha * 0.3})`;
-        this.ctx.lineWidth = 1;
-        this.drawShapeOutline(shape);
-        this.ctx.stroke();
-        this.ctx.restore();
-        return; // Don't draw the main shape
+      let alpha;
+      if (distToPlayer <= safeDistance) {
+        // Fully visible when close
+        alpha = 1;
+      } else if (distToPlayer >= maxVisibilityDistance) {
+        // Almost invisible when far (but still slightly visible)
+        alpha = 0.05;
+      } else {
+        // SMOOTH transition between safe distance and max distance
+        const fadeRange = maxVisibilityDistance - safeDistance;
+        const fadeProgress = (distToPlayer - safeDistance) / fadeRange;
+        
+        // Smooth curve for gradual fade-in (not linear)
+        const smoothFade = 1 - Math.pow(fadeProgress, 0.5); // Square root for gentle curve
+        alpha = Math.max(0.05, smoothFade * 0.95 + 0.05); // Between 0.05 and 1
       }
       
       // Dark shadow effect
@@ -861,15 +945,16 @@ class Game {
       this.ctx.arc(0, 0, shape.size * 1.8, 0, Math.PI * 2);
       this.ctx.fill();
       
-      // Make shape dark with transparency based on distance
-      shape.color = `rgba(50, 0, 100, ${alpha})`;
+      // Make shape dark with smooth transparency
+      const baseAlpha = Math.max(0.1, alpha);
+      shape.color = `rgba(50, 0, 100, ${baseAlpha})`;
     }
     
-    this.ctx.rotate(shape.angle);
+    this.ctx.rotate(shape.angle || 0);
     
     // Draw main shape body
-    this.ctx.fillStyle = shape.color;
-    this.ctx.strokeStyle = this.darkenColor(shape.color);
+    this.ctx.fillStyle = shape.color || '#FF6B6B';
+    this.ctx.strokeStyle = this.darkenColor(shape.color || '#FF6B6B');
     this.ctx.lineWidth = shape.rarity !== 'normal' ? 4 : 3;
     
     this.drawShapeOutline(shape);
@@ -881,8 +966,8 @@ class Game {
     
     this.ctx.restore();
     
-    // Draw health bar if damaged (not for invisible shadows)
-    if (shape.health < shape.maxHealth && !(shape.rarity === 'shadow' && distToPlayer > 100)) {
+    // Draw health bar if damaged (not for very faded shadows)
+    if (shape.health < (shape.maxHealth || shape.health) && !(shape.rarity === 'shadow' && distToPlayer > 200)) {
       const barWidth = shape.size * 2;
       const barHeight = 4;
       const barY = shape.y - shape.size - 10;
@@ -892,23 +977,47 @@ class Game {
       this.ctx.fillRect(shape.x - barWidth/2, barY, barWidth, barHeight);
       
       // Health fill
-      const healthPercent = shape.health / shape.maxHealth;
+      const healthPercent = shape.health / (shape.maxHealth || shape.health);
       this.ctx.fillStyle = '#FF6B6B';
       this.ctx.fillRect(shape.x - barWidth/2, barY, barWidth * healthPercent, barHeight);
     }
   }
   
+  drawBasicShape(shape) {
+    try {
+      this.ctx.save();
+      this.ctx.translate(shape.x, shape.y);
+      this.ctx.rotate(shape.angle || 0);
+      
+      // Draw shape
+      this.ctx.fillStyle = shape.color || '#FF6B6B';
+      this.ctx.strokeStyle = this.darkenColor(shape.color || '#FF6B6B');
+      this.ctx.lineWidth = 3;
+      
+      this.drawShapeOutline(shape);
+      this.ctx.fill();
+      this.ctx.stroke();
+      
+      this.ctx.restore();
+    } catch (error) {
+      console.error('Error drawing basic shape:', error);
+    }
+  }
+  
   drawShapeOutline(shape) {
     this.ctx.beginPath();
-    if (shape.sides === 4) {
+    const sides = shape.sides || 4;
+    const size = shape.size || 20;
+    
+    if (sides === 4) {
       // Square
-      this.ctx.rect(-shape.size, -shape.size, shape.size * 2, shape.size * 2);
+      this.ctx.rect(-size, -size, size * 2, size * 2);
     } else {
       // Other polygons
-      for (let i = 0; i < shape.sides; i++) {
-        const angle = (i / shape.sides) * Math.PI * 2;
-        const x = Math.cos(angle) * shape.size;
-        const y = Math.sin(angle) * shape.size;
+      for (let i = 0; i < sides; i++) {
+        const angle = (i / sides) * Math.PI * 2;
+        const x = Math.cos(angle) * size;
+        const y = Math.sin(angle) * size;
         
         if (i === 0) {
           this.ctx.moveTo(x, y);
@@ -921,187 +1030,183 @@ class Game {
   }
   
   drawProjectiles() {
-    this.ctx.fillStyle = '#FFD700';
-    this.ctx.strokeStyle = '#FFA500';
-    this.ctx.lineWidth = 2;
-    
-    this.state.projectiles.forEach(projectile => {
-      this.ctx.beginPath();
-      this.ctx.arc(projectile.x, projectile.y, projectile.size, 0, Math.PI * 2);
-      this.ctx.fill();
-      this.ctx.stroke();
-    });
+    try {
+      this.ctx.fillStyle = '#FFD700';
+      this.ctx.strokeStyle = '#FFA500';
+      this.ctx.lineWidth = 2;
+      
+      this.state.projectiles.forEach(projectile => {
+        this.ctx.beginPath();
+        this.ctx.arc(projectile.x, projectile.y, projectile.size, 0, Math.PI * 2);
+        this.ctx.fill();
+        this.ctx.stroke();
+      });
+    } catch (error) {
+      console.error('Error drawing projectiles:', error);
+    }
   }
   
   drawParticles() {
-    this.state.particles.forEach(particle => {
-      this.ctx.save();
-      
-      // Draw trail if enabled
-      if (particle.trail && particle.trailPositions.length > 0) {
-        this.ctx.strokeStyle = this.hexToRgba(particle.color, 0.3);
-        this.ctx.lineWidth = particle.size * 0.5;
-        this.ctx.beginPath();
-        particle.trailPositions.forEach((pos, i) => {
-          if (i === 0) {
-            this.ctx.moveTo(pos.x, pos.y);
-          } else {
-            this.ctx.lineTo(pos.x, pos.y);
-          }
-        });
-        this.ctx.stroke();
-      }
-      
-      // Set particle style
-      this.ctx.globalAlpha = particle.lifetime;
-      
-      // Apply glow effect for rare particles
-      if (particle.glow) {
-        this.ctx.shadowColor = particle.color;
-        this.ctx.shadowBlur = particle.size * 2;
-      }
-      
-      // Draw particle
-      if (particle.ring) {
-        // Ring particle
-        this.ctx.strokeStyle = particle.color;
-        this.ctx.lineWidth = 2;
-        this.ctx.beginPath();
-        this.ctx.arc(particle.x, particle.y, particle.size * 3, 0, Math.PI * 2);
-        this.ctx.stroke();
-      } else if (particle.sparkle) {
-        // Sparkle effect
-        this.ctx.fillStyle = particle.color;
-        const sparkleSize = particle.size * (1 + Math.random() * 0.5);
-        this.ctx.fillRect(
-          particle.x - sparkleSize/2,
-          particle.y - sparkleSize/2,
-          sparkleSize,
-          sparkleSize
-        );
-      } else {
-        // Normal particle
+    try {
+      this.state.particles.forEach(particle => {
+        this.ctx.save();
+        
+        // Set particle style
+        this.ctx.globalAlpha = particle.lifetime || 1;
+        
+        // Apply glow effect for rare particles
+        if (particle.glow) {
+          this.ctx.shadowColor = particle.color;
+          this.ctx.shadowBlur = particle.size * 2;
+        }
+        
+        // Draw particle
         this.ctx.fillStyle = particle.color;
         this.ctx.beginPath();
         this.ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
         this.ctx.fill();
-      }
-      
-      this.ctx.restore();
-    });
+        
+        this.ctx.restore();
+      });
+    } catch (error) {
+      console.error('Error drawing particles:', error);
+    }
   }
   
   drawMinimap() {
     if (!this.minimapCtx) return;
     
-    const ctx = this.minimapCtx;
-    const scale = 176 / Math.max(CONFIG.WORLD_WIDTH, CONFIG.WORLD_HEIGHT);
-    
-    // Clear minimap
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-    ctx.fillRect(0, 0, 176, 176);
-    
-    // Draw border
-    ctx.strokeStyle = 'rgba(0, 178, 225, 0.5)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(0, 0, 176, 176);
-    
-    // Draw shapes
-    this.state.shapes.forEach(shape => {
-      const x = shape.x * scale;
-      const y = shape.y * scale;
+    try {
+      const ctx = this.minimapCtx;
+      const scale = 176 / Math.max(CONFIG.WORLD_WIDTH, CONFIG.WORLD_HEIGHT);
       
-      // Color and size based on rarity
-      let color, size;
-      if (shape.rarity === 'greenRadiant') {
-        color = '#00FF00';
-        size = 3;
-      } else if (shape.rarity === 'blueRadiant') {
-        color = '#00BFFF';
-        size = 4;
-      } else if (shape.rarity === 'shadow') {
-        const distToPlayer = Math.sqrt(
-          Math.pow(shape.x - this.state.player.x, 2) + 
-          Math.pow(shape.y - this.state.player.y, 2)
-        );
-        const alpha = 1 - (distToPlayer / 150);
-        color = `rgba(139, 0, 255, ${Math.max(0.3, alpha)})`;
-        size = 2;
-      } else {
-        color = 'rgba(255, 255, 255, 0.3)';
-        size = 1;
-      }
+      // Clear minimap
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+      ctx.fillRect(0, 0, 176, 176);
       
-      ctx.fillStyle = color;
-      ctx.fillRect(x - size/2, y - size/2, size, size);
-    });
-    
-    // Draw player
-    ctx.fillStyle = '#00B2E1';
-    const playerX = this.state.player.x * scale;
-    const playerY = this.state.player.y * scale;
-    ctx.beginPath();
-    ctx.arc(playerX, playerY, 3, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Draw view area
-    ctx.strokeStyle = 'rgba(0, 178, 225, 0.3)';
-    ctx.lineWidth = 1;
-    const viewX = this.state.camera.x * scale;
-    const viewY = this.state.camera.y * scale;
-    const viewW = this.canvas.width * scale;
-    const viewH = this.canvas.height * scale;
-    ctx.strokeRect(viewX, viewY, viewW, viewH);
+      // Draw border
+      ctx.strokeStyle = 'rgba(0, 178, 225, 0.5)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(0, 0, 176, 176);
+      
+      // Draw shapes
+      this.state.shapes.forEach(shape => {
+        const x = shape.x * scale;
+        const y = shape.y * scale;
+        
+        // Color and size based on rarity
+        let color, size;
+        if (shape.rarity === 'greenRadiant') {
+          color = '#00FF00';
+          size = 3;
+        } else if (shape.rarity === 'blueRadiant') {
+          color = '#00BFFF';
+          size = 4;
+        } else if (shape.rarity === 'shadow') {
+          const distToPlayer = Math.sqrt(
+            Math.pow(shape.x - this.state.player.x, 2) + 
+            Math.pow(shape.y - this.state.player.y, 2)
+          );
+          const alpha = distToPlayer > 300 ? 0.2 : 0.8;
+          color = `rgba(139, 0, 255, ${alpha})`;
+          size = 2;
+        } else {
+          color = 'rgba(255, 255, 255, 0.3)';
+          size = 1;
+        }
+        
+        ctx.fillStyle = color;
+        ctx.fillRect(x - size/2, y - size/2, size, size);
+      });
+      
+      // Draw player
+      ctx.fillStyle = '#00B2E1';
+      const playerX = this.state.player.x * scale;
+      const playerY = this.state.player.y * scale;
+      ctx.beginPath();
+      ctx.arc(playerX, playerY, 3, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Draw view area
+      ctx.strokeStyle = 'rgba(0, 178, 225, 0.3)';
+      ctx.lineWidth = 1;
+      const viewX = this.state.camera.x * scale;
+      const viewY = this.state.camera.y * scale;
+      const viewW = this.canvas.width * scale;
+      const viewH = this.canvas.height * scale;
+      ctx.strokeRect(viewX, viewY, viewW, viewH);
+    } catch (error) {
+      console.error('Error drawing minimap:', error);
+    }
   }
   
   // ==================== HELPER FUNCTIONS ====================
   darkenColor(color) {
-    if (color.includes('rgba')) return color; // Don't darken rgba colors (shadows)
-    
-    const hex = color.replace('#', '');
-    const r = parseInt(hex.substr(0, 2), 16);
-    const g = parseInt(hex.substr(2, 2), 16);
-    const b = parseInt(hex.substr(4, 2), 16);
-    
-    const darkerR = Math.floor(r * 0.7);
-    const darkerG = Math.floor(g * 0.7);
-    const darkerB = Math.floor(b * 0.7);
-    
-    return `rgb(${darkerR}, ${darkerG}, ${darkerB})`;
+    try {
+      if (!color || color.includes('rgba')) return color; // Don't darken rgba colors (shadows)
+      
+      const hex = color.replace('#', '');
+      const r = parseInt(hex.substr(0, 2), 16);
+      const g = parseInt(hex.substr(2, 2), 16);
+      const b = parseInt(hex.substr(4, 2), 16);
+      
+      const darkerR = Math.floor(r * 0.7);
+      const darkerG = Math.floor(g * 0.7);
+      const darkerB = Math.floor(b * 0.7);
+      
+      return `rgb(${darkerR}, ${darkerG}, ${darkerB})`;
+    } catch (error) {
+      return color || '#666666'; // Fallback color
+    }
   }
   
   hexToRgba(hex, alpha) {
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    try {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    } catch (error) {
+      return `rgba(255, 255, 255, ${alpha})`;
+    }
   }
   
   // ==================== GAME LOOP ====================
   gameLoop(currentTime) {
-    const deltaTime = currentTime - this.lastTime;
-    this.lastTime = currentTime;
-    
-    if (this.running) {
-      this.update(deltaTime);
-      this.render();
+    try {
+      const deltaTime = currentTime - this.lastTime;
+      this.lastTime = currentTime;
+      
+      if (this.running) {
+        this.update(deltaTime);
+        this.render();
+      }
+      
+      requestAnimationFrame((time) => this.gameLoop(time));
+    } catch (error) {
+      console.error('Critical error in game loop:', error);
+      // Continue the game loop even if there's an error
+      requestAnimationFrame((time) => this.gameLoop(time));
     }
-    
-    requestAnimationFrame((time) => this.gameLoop(time));
   }
 }
 
 // ==================== START GAME ====================
 window.addEventListener('DOMContentLoaded', () => {
-  const game = new Game();
-  
-  // Make game globally available for debugging
-  window.game = game;
-  
-  console.log('🎮 Arras.io Enhanced Edition started!');
-  console.log('🌟 Rare shapes with AMAZING visuals:');
-  console.log('   ⭐ Green Radiant: Bright green glow');
-  console.log('   ✨ Blue Radiant: Intense blue radiance');
-  console.log('   ☠️ Shadow: Invisible until you get close!');
-  console.log('🔧 Debug keys: G, B, N, I');
+  try {
+    const game = new Game();
+    
+    // Make game globally available for debugging
+    window.game = game;
+    
+    console.log('🎮 Arras.io Enhanced Edition started!');
+    console.log('🌟 Rare shapes with SMOOTH visuals:');
+    console.log('   ⭐ Green Radiant: Bright green glow');
+    console.log('   ✨ Blue Radiant: Intense blue radiance');
+    console.log('   ☠️ Shadow: Smooth fade-in from 400 pixels away!');
+    console.log('🔧 Debug keys: G, B, N, I');
+  } catch (error) {
+    console.error('Failed to start game:', error);
+    alert('Game failed to start. Please check console for errors.');
+  }
 });
