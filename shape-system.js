@@ -2,6 +2,7 @@
  * Enhanced Shape System - Complete shape management for Arras.io
  * NOW INCLUDES: Rainbow (1/5000) and Transgender (1/50000) ultra-rare shapes!
  * Features growing rainbow effects and transgender pride colors with massive rewards
+ * COMPLETE VERSION WITH ALL VISUAL ENHANCEMENTS BUILT IN
  */
 
 class ShapeSystem {
@@ -13,6 +14,7 @@ class ShapeSystem {
     this.spawnRate = 50; // milliseconds
     this.lastSpawnTime = Date.now();
     this.shapeIdCounter = 0;
+    this.lastPlayerPosition = null;
     
     // Base shape type definitions
     this.shapeTypes = {
@@ -273,16 +275,21 @@ class ShapeSystem {
       hasTransgenderEffect: rarityConfig.hasTransgenderEffect,
       pulseSpeed: rarityConfig.pulseSpeed || 0,
       pulsePhase: Math.random() * Math.PI * 2,
+      pulseIntensity: 1,
       
       // Rainbow-specific properties
       rainbowPhase: 0,
       rainbowColorIndex: 0,
       growthPhase: 0,
       currentGrowth: 1,
+      glowIntensity: 1,
       
       // Transgender-specific properties
       transgenderColorIndex: 0,
       transgenderPhase: 0,
+      
+      // Distance tracking for shadow shapes
+      distanceToPlayer: 0,
       
       // Creation time for special effects
       createdAt: Date.now()
@@ -301,6 +308,13 @@ class ShapeSystem {
       console.log(`🌟 This is a 1 in 50,000 spawn - you're incredibly lucky!`);
     } else if (rarity !== 'normal') {
       console.log(`✨ Spawned ${rarity} ${type} at (${Math.round(x)}, ${Math.round(y)}) - ${xp} XP!`);
+    }
+    
+    // Show notification for rare spawns (with a small delay to avoid spam)
+    if (rarity !== 'normal') {
+      setTimeout(() => {
+        this.showRareSpawnNotification(rarity, type, xp);
+      }, 100);
     }
     
     return shape;
@@ -385,12 +399,76 @@ class ShapeSystem {
     
     return shape;
   }
+
+  /**
+   * Update visual properties for enhanced effects
+   */
+  updateShapeVisualProperties(shape) {
+    // Calculate distance to player for shadow shapes
+    if (this.lastPlayerPosition && shape.rarity === 'shadow') {
+      const dx = shape.x - this.lastPlayerPosition.x;
+      const dy = shape.y - this.lastPlayerPosition.y;
+      shape.distanceToPlayer = Math.sqrt(dx * dx + dy * dy);
+    }
+    
+    // Update animation phases for ultra-rare shapes
+    if (shape.rarity === 'rainbow') {
+      // Rainbow animation updates
+      shape.rainbowPhase = (shape.rainbowPhase || 0) + 0.05;
+      shape.growthPhase = (shape.growthPhase || 0) + 0.005;
+      shape.currentGrowth = 1 + Math.sin(shape.growthPhase) * 0.2;
+      
+      // Cycle through rainbow colors more smoothly
+      const colorIndex = Math.floor(shape.rainbowPhase) % this.rainbowColors.length;
+      shape.color = this.rainbowColors[colorIndex];
+      shape.particleColor = this.rainbowColors[(colorIndex + 1) % this.rainbowColors.length];
+      shape.glowColor = this.rainbowColors[Math.floor(shape.rainbowPhase * 2) % this.rainbowColors.length];
+      
+      // Enhanced glow intensity for rainbow
+      shape.glowIntensity = 0.8 + Math.sin(shape.rainbowPhase * 3) * 0.2;
+    }
+    
+    if (shape.rarity === 'transgender') {
+      // Transgender animation updates
+      shape.transgenderPhase = (shape.transgenderPhase || 0) + 0.1;
+      shape.currentGrowth = 1 + Math.sin(shape.pulsePhase || 0) * 0.15;
+      
+      // Cycle through transgender pride colors
+      const colorIndex = Math.floor(shape.transgenderPhase) % this.transgenderColors.length;
+      shape.color = this.transgenderColors[colorIndex];
+      shape.particleColor = this.transgenderColors[(colorIndex + 2) % this.transgenderColors.length];
+      
+      // Alternating glow between blue and pink for legendary status
+      const glowIndex = Math.floor(shape.transgenderPhase * 0.5) % 2;
+      shape.glowColor = glowIndex === 0 ? '#55CDFC' : '#F7A8B8';
+      
+      // Enhanced glow intensity for legendary status
+      shape.glowIntensity = 1.0 + Math.sin(shape.transgenderPhase * 4) * 0.3;
+    }
+    
+    // Enhanced pulse effects for all rare shapes
+    if (shape.pulseSpeed > 0) {
+      shape.pulsePhase = (shape.pulsePhase || 0) + shape.pulseSpeed;
+      shape.pulseIntensity = Math.sin(shape.pulsePhase) * 0.3 + 0.7;
+    }
+    
+    // Enhanced glow for blue and green radiant
+    if (shape.rarity === 'blueRadiant') {
+      shape.glowIntensity = 0.6 + Math.sin(Date.now() * 0.008) * 0.2;
+    }
+    if (shape.rarity === 'greenRadiant') {
+      shape.glowIntensity = 0.5 + Math.sin(Date.now() * 0.01) * 0.2;
+    }
+  }
   
   /**
    * Update all shapes with enhanced visual effects
    */
   update(deltaTime, playerPosition) {
     const now = Date.now();
+    
+    // Store player position for distance calculations
+    this.lastPlayerPosition = playerPosition;
     
     // Spawn new shapes periodically
     if (now - this.lastSpawnTime > this.spawnRate) {
@@ -448,6 +526,9 @@ class ShapeSystem {
         // Ultra-intense pulse for legendary status
         shape.currentGrowth = 1 + Math.sin(shape.pulsePhase) * 0.15;
       }
+      
+      // Update visual properties for enhanced effects
+      this.updateShapeVisualProperties(shape);
       
       // Bounce off world boundaries
       if (shape.x - shape.size < 0 || shape.x + shape.size > this.worldWidth) {
@@ -587,6 +668,180 @@ class ShapeSystem {
     
     return { destroyed: false, xp: 0, type: shape.type, rarity: shape.rarity, shape: shape };
   }
+
+  /**
+   * Enhanced notification system for rare shape spawns
+   */
+  showRareSpawnNotification(rarity, type, xp) {
+    const notifications = {
+      'rainbow': {
+        message: `🌈 RAINBOW ${type.toUpperCase()} SPAWNED! 🌈`,
+        className: 'rainbow-notification',
+        duration: 3000
+      },
+      'transgender': {
+        message: `🏳️‍⚧️ TRANSGENDER ${type.toUpperCase()} - LEGENDARY! 🏳️‍⚧️`,
+        className: 'transgender-notification',
+        duration: 4000
+      },
+      'shadow': {
+        message: `☠️ SHADOW ${type.toUpperCase()} APPEARED! ☠️`,
+        className: 'rare-notification',
+        duration: 2500
+      },
+      'blueRadiant': {
+        message: `✨ BLUE RADIANT ${type.toUpperCase()}! ✨`,
+        className: 'rare-notification',
+        duration: 2000
+      },
+      'greenRadiant': {
+        message: `⭐ GREEN RADIANT ${type.toUpperCase()}! ⭐`,
+        className: 'rare-notification',
+        duration: 2000
+      }
+    };
+
+    const notification = notifications[rarity];
+    if (notification) {
+      // Check if showEnhancedNotification function exists (from index.html)
+      if (typeof showEnhancedNotification === 'function') {
+        showEnhancedNotification(notification.message, notification.className);
+      } else {
+        // Fallback: create notification manually
+        this.createFallbackNotification(notification.message, notification.className, notification.duration);
+      }
+    }
+  }
+
+  /**
+   * Fallback notification system if showEnhancedNotification doesn't exist
+   */
+  createFallbackNotification(message, className, duration) {
+    const notification = document.createElement('div');
+    notification.className = `rare-notification ${className}`;
+    notification.textContent = message;
+    notification.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: linear-gradient(135deg, rgba(255, 215, 0, 0.9), rgba(255, 140, 0, 0.9));
+      border: 3px solid #FFD700;
+      border-radius: 10px;
+      padding: 15px 25px;
+      font-size: 20px;
+      font-weight: bold;
+      color: #000;
+      text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);
+      z-index: 200;
+      pointer-events: none;
+      animation: rareNotify 2s ease-out forwards;
+    `;
+    
+    // Special styling for ultra-rare shapes
+    if (className === 'rainbow-notification') {
+      notification.style.background = 'linear-gradient(135deg, #FF0000, #FF8000, #FFFF00, #00FF00, #0080FF, #8000FF)';
+      notification.style.borderColor = '#FF0080';
+    } else if (className === 'transgender-notification') {
+      notification.style.background = 'linear-gradient(135deg, #55CDFC, #F7A8B8, #FFFFFF, #F7A8B8, #55CDFC)';
+      notification.style.borderColor = '#55CDFC';
+      notification.style.fontSize = '24px';
+    }
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.remove();
+      }
+    }, duration);
+  }
+
+  /**
+   * Enhanced particle creation for ultra-rare destruction effects
+   */
+  createEnhancedDestructionParticles(shape, particles) {
+    if (!particles) return;
+    
+    const particleCount = shape.rarity === 'transgender' ? 50 : 
+                        shape.rarity === 'rainbow' ? 40 : 
+                        shape.rarity === 'shadow' ? 30 : 
+                        shape.rarity === 'blueRadiant' ? 20 : 
+                        shape.rarity === 'greenRadiant' ? 15 : 10;
+    
+    const particleSpeed = shape.rarity === 'transgender' ? 12 : 
+                         shape.rarity === 'rainbow' ? 10 : 8;
+    
+    for (let i = 0; i < particleCount; i++) {
+      const angle = (Math.PI * 2 * i) / particleCount + Math.random() * 0.5;
+      const speed = particleSpeed * (0.5 + Math.random() * 0.5);
+      
+      const particle = {
+        x: shape.x,
+        y: shape.y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        color: shape.particleColor || shape.color,
+        size: Math.random() * 8 + 3,
+        lifetime: 1,
+        glow: shape.rarity !== 'normal',
+        rarity: shape.rarity,
+        fadeRate: shape.rarity === 'transgender' ? 0.008 : shape.rarity === 'rainbow' ? 0.01 : 0.02,
+        
+        // Special effects for ultra-rare particles
+        trail: shape.rarity === 'rainbow' || shape.rarity === 'transgender',
+        sparkle: shape.rarity === 'rainbow',
+        spiralMotion: shape.rarity === 'transgender',
+        pulseRate: shape.rarity === 'rainbow' ? 0.1 : shape.rarity === 'transgender' ? 0.08 : 0
+      };
+      
+      particles.push(particle);
+    }
+    
+    // Create additional burst effect for ultra-rare shapes
+    if (shape.rarity === 'rainbow' || shape.rarity === 'transgender') {
+      const burstParticles = 25;
+      for (let i = 0; i < burstParticles; i++) {
+        const angle = (Math.PI * 2 * i) / burstParticles;
+        particles.push({
+          x: shape.x,
+          y: shape.y,
+          vx: Math.cos(angle) * particleSpeed * 1.5,
+          vy: Math.sin(angle) * particleSpeed * 1.5,
+          color: shape.glowColor || shape.particleColor,
+          size: 3,
+          lifetime: 1.5,
+          glow: true,
+          ring: true,
+          rarity: shape.rarity,
+          fadeRate: 0.02
+        });
+      }
+    }
+  }
+
+  /**
+   * Enhanced destruction result processing
+   */
+  processDestructionResult(result, particles) {
+    if (result.destroyed && result.shape) {
+      // Create enhanced particles for the destruction
+      this.createEnhancedDestructionParticles(result.shape, particles);
+      
+      // Log special destruction messages for ultra-rare shapes
+      if (result.rarity === 'rainbow') {
+        console.log(`🌈💥 RAINBOW ${result.type.toUpperCase()} DESTROYED! 💥🌈`);
+        console.log(`💰 MASSIVE REWARD: ${result.xp} XP (${result.xp * 10} score points!)`);
+        console.log(`🎉 Congratulations on destroying this 1/5000 rarity!`);
+      } else if (result.rarity === 'transgender') {
+        console.log(`🏳️‍⚧️💎 TRANSGENDER ${result.type.toUpperCase()} DESTROYED - LEGENDARY! 💎🏳️‍⚧️`);
+        console.log(`💰 ULTIMATE REWARD: ${result.xp} XP (${result.xp * 10} score points!)`);
+        console.log(`🌟 You just destroyed a 1/50,000 legendary shape! You're amazing!`);
+      }
+    }
+    
+    return result;
+  }
   
   /**
    * Get all shapes
@@ -615,7 +870,7 @@ class ShapeSystem {
   }
   
   /**
-   * Get statistics about current shapes including new ultra-rare breakdown
+   * Enhanced statistics with visual effect indicators
    */
   getStatistics() {
     const stats = {
@@ -638,6 +893,17 @@ class ShapeSystem {
       stats[shape.rarity]++;
       stats.byType[shape.type]++;
     });
+    
+    // Add visual effect indicators
+    stats.hasUltraRareEffects = stats.rainbow > 0 || stats.transgender > 0;
+    stats.hasRareEffects = stats.greenRadiant > 0 || stats.blueRadiant > 0 || stats.shadow > 0;
+    stats.totalRareShapes = stats.greenRadiant + stats.blueRadiant + stats.shadow + stats.rainbow + stats.transgender;
+    
+    // Calculate rarity distribution percentages
+    if (stats.total > 0) {
+      stats.normalPercentage = ((stats.normal / stats.total) * 100).toFixed(1);
+      stats.rarePercentage = ((stats.totalRareShapes / stats.total) * 100).toFixed(1);
+    }
     
     return stats;
   }
@@ -718,6 +984,598 @@ class ShapeSystem {
   }
 }
 
+// ==================== ENHANCED VISUAL EFFECTS RENDERER ====================
+
+/**
+ * Enhanced Shape Visuals - Ultra-Rare Effects Renderer
+ * Handles the spectacular visual effects for Rainbow and Transgender shapes
+ * Plus enhanced effects for all rare shapes
+ */
+class EnhancedShapeVisuals {
+  constructor() {
+    this.rainbowTime = 0;
+    this.transgenderTime = 0;
+    this.particleTime = 0;
+    this.glowIntensity = 0;
+  }
+
+  /**
+   * Main enhanced shape renderer - called from game.js
+   */
+  static drawEnhancedShape(ctx, shape, distToPlayer) {
+    const visuals = new EnhancedShapeVisuals();
+    
+    // Update animation times
+    visuals.rainbowTime += 0.05;
+    visuals.transgenderTime += 0.03;
+    visuals.particleTime += 0.02;
+    visuals.glowIntensity = Math.sin(Date.now() * 0.01) * 0.5 + 0.5;
+
+    ctx.save();
+    ctx.translate(shape.x, shape.y);
+    ctx.rotate(shape.angle || 0);
+
+    // Apply special effects based on rarity
+    switch(shape.rarity) {
+      case 'rainbow':
+        visuals.renderRainbowShape(ctx, shape);
+        break;
+      case 'transgender':
+        visuals.renderTransgenderShape(ctx, shape);
+        break;
+      case 'shadow':
+        visuals.renderShadowShape(ctx, shape, distToPlayer);
+        break;
+      case 'blueRadiant':
+        visuals.renderBlueRadiantShape(ctx, shape);
+        break;
+      case 'greenRadiant':
+        visuals.renderGreenRadiantShape(ctx, shape);
+        break;
+      default:
+        visuals.renderNormalShape(ctx, shape);
+        break;
+    }
+
+    ctx.restore();
+  }
+
+  /**
+   * 🌈 RAINBOW SHAPE - Growing rainbow with spectacular effects
+   */
+  renderRainbowShape(ctx, shape) {
+    const size = shape.size * (shape.currentGrowth || 1);
+    const time = this.rainbowTime;
+    
+    // Rainbow background aura
+    for (let i = 0; i < 5; i++) {
+      const auraSize = size + (20 * (5 - i));
+      const alpha = 0.1 + (i * 0.05);
+      
+      const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, auraSize);
+      gradient.addColorStop(0, `rgba(255, 0, 128, ${alpha})`);
+      gradient.addColorStop(0.5, `rgba(255, 255, 0, ${alpha * 0.5})`);
+      gradient.addColorStop(1, 'transparent');
+      
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(0, 0, auraSize, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Rotating rainbow rings
+    for (let ring = 0; ring < 3; ring++) {
+      ctx.save();
+      ctx.rotate(time * (0.5 + ring * 0.2));
+      
+      const ringRadius = size + (ring * 15);
+      const segments = 12;
+      
+      for (let i = 0; i < segments; i++) {
+        const angle = (Math.PI * 2 * i) / segments;
+        const hue = (time * 50 + i * 30 + ring * 60) % 360;
+        
+        ctx.fillStyle = `hsla(${hue}, 100%, 60%, 0.8)`;
+        ctx.beginPath();
+        ctx.arc(
+          Math.cos(angle) * ringRadius,
+          Math.sin(angle) * ringRadius,
+          3 + ring, 0, Math.PI * 2
+        );
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // Main rainbow shape with cycling colors
+    const colors = [
+      '#FF0000', '#FF8000', '#FFFF00', '#00FF00', 
+      '#0080FF', '#8000FF', '#FF0080'
+    ];
+    
+    // Create multi-color gradient
+    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, size);
+    for (let i = 0; i < colors.length; i++) {
+      const offset = (i / (colors.length - 1) + time * 0.1) % 1;
+      gradient.addColorStop(offset, colors[i]);
+    }
+
+    // Intense glow effect
+    ctx.shadowBlur = 40 + Math.sin(time * 2) * 20;
+    ctx.shadowColor = shape.color;
+    
+    ctx.fillStyle = gradient;
+    this.drawPolygon(ctx, shape.sides, size);
+    ctx.fill();
+
+    // Rainbow border with pulse
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = `hsl(${(time * 100) % 360}, 100%, 50%)`;
+    ctx.lineWidth = 6 + Math.sin(time * 3) * 2;
+    ctx.stroke();
+
+    // Sparkle particles
+    this.renderRainbowSparkles(ctx, shape, time);
+  }
+
+  /**
+   * 🏳️‍⚧️ TRANSGENDER SHAPE - Pride colors with legendary effects
+   */
+  renderTransgenderShape(ctx, shape) {
+    const size = shape.size * (shape.currentGrowth || 1);
+    const time = this.transgenderTime;
+    
+    // Transgender pride colors
+    const prideColors = ['#55CDFC', '#F7A8B8', '#FFFFFF', '#F7A8B8', '#55CDFC'];
+    
+    // Legendary aura layers
+    for (let i = 0; i < 8; i++) {
+      const auraSize = size + (25 * (8 - i));
+      const alpha = 0.15 - (i * 0.015);
+      const colorIndex = Math.floor((time * 2 + i * 0.5)) % prideColors.length;
+      
+      const color = this.hexToRgba(prideColors[colorIndex], alpha);
+      
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(0, 0, auraSize, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Orbiting pride flag stripes
+    for (let orbit = 0; orbit < 5; orbit++) {
+      ctx.save();
+      ctx.rotate(time * (0.3 + orbit * 0.1));
+      
+      const orbitRadius = size + (orbit * 20);
+      const stripeCount = 16;
+      
+      for (let i = 0; i < stripeCount; i++) {
+        const angle = (Math.PI * 2 * i) / stripeCount;
+        const colorIndex = (i + Math.floor(time * 5)) % prideColors.length;
+        
+        ctx.fillStyle = prideColors[colorIndex];
+        ctx.beginPath();
+        ctx.arc(
+          Math.cos(angle) * orbitRadius,
+          Math.sin(angle) * orbitRadius,
+          4 + orbit, 0, Math.PI * 2
+        );
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // Main shape with pride gradient
+    const gradient = ctx.createLinearGradient(-size, -size, size, size);
+    for (let i = 0; i < prideColors.length; i++) {
+      gradient.addColorStop(i / (prideColors.length - 1), prideColors[i]);
+    }
+
+    // Ultra-intense glow for legendary status
+    ctx.shadowBlur = 60 + Math.sin(time * 4) * 30;
+    ctx.shadowColor = prideColors[Math.floor(time * 3) % prideColors.length];
+    
+    ctx.fillStyle = gradient;
+    this.drawPolygon(ctx, shape.sides, size);
+    ctx.fill();
+
+    // Legendary border
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#FFD700'; // Gold border for legendary
+    ctx.lineWidth = 8 + Math.sin(time * 5) * 3;
+    ctx.stroke();
+
+    // Additional pride flag border
+    ctx.strokeStyle = prideColors[Math.floor(time * 2) % prideColors.length];
+    ctx.lineWidth = 4;
+    ctx.stroke();
+
+    // Legendary sparkles and effects
+    this.renderTransgenderSparkles(ctx, shape, time);
+  }
+
+  /**
+   * ☠️ SHADOW SHAPE - Mysterious fading effects
+   */
+  renderShadowShape(ctx, shape, distToPlayer) {
+    const size = shape.size;
+    const time = Date.now() * 0.001;
+    
+    // Calculate visibility based on distance
+    const maxDistance = 400;
+    const minDistance = 100;
+    let alpha = 1;
+    
+    if (distToPlayer > minDistance) {
+      if (distToPlayer >= maxDistance) {
+        alpha = 0.05;
+      } else {
+        const fadeRange = maxDistance - minDistance;
+        const fadeProgress = (distToPlayer - minDistance) / fadeRange;
+        alpha = Math.max(0.05, 1 - Math.pow(fadeProgress, 0.5));
+      }
+    }
+
+    // Shadow aura
+    for (let i = 0; i < 6; i++) {
+      const auraSize = size + (15 * (6 - i));
+      const auraAlpha = alpha * 0.1 * (6 - i) / 6;
+      
+      ctx.fillStyle = `rgba(139, 0, 255, ${auraAlpha})`;
+      ctx.beginPath();
+      ctx.arc(0, 0, auraSize, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Shadowy wisps
+    for (let i = 0; i < 8; i++) {
+      ctx.save();
+      ctx.rotate(time * 0.5 + i * Math.PI / 4);
+      
+      const wispDistance = size + 10 + Math.sin(time * 2 + i) * 5;
+      const wispAlpha = alpha * 0.3;
+      
+      ctx.fillStyle = `rgba(139, 0, 255, ${wispAlpha})`;
+      ctx.beginPath();
+      ctx.arc(wispDistance, 0, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Main shadow shape
+    ctx.globalAlpha = alpha;
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = '#8B00FF';
+    
+    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, size);
+    gradient.addColorStop(0, this.lightenColor(shape.color, 20));
+    gradient.addColorStop(1, this.darkenColor(shape.color, 50));
+    
+    ctx.fillStyle = gradient;
+    this.drawPolygon(ctx, shape.sides, size);
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = `rgba(139, 0, 255, ${alpha})`;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    
+    ctx.globalAlpha = 1;
+  }
+
+  /**
+   * ✨ BLUE RADIANT SHAPE - Electric blue effects
+   */
+  renderBlueRadiantShape(ctx, shape) {
+    const size = shape.size;
+    const time = Date.now() * 0.001;
+    
+    // Electric aura
+    for (let i = 0; i < 4; i++) {
+      const auraSize = size + (12 * (4 - i));
+      const alpha = 0.2 - (i * 0.04);
+      
+      ctx.fillStyle = `rgba(0, 191, 255, ${alpha})`;
+      ctx.beginPath();
+      ctx.arc(0, 0, auraSize, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Electric bolts
+    for (let i = 0; i < 6; i++) {
+      ctx.save();
+      ctx.rotate((time * 2 + i * Math.PI / 3));
+      
+      const boltLength = size + 15;
+      ctx.strokeStyle = '#00BFFF';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(size, 0);
+      ctx.lineTo(boltLength, Math.sin(time * 10) * 5);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Main shape
+    ctx.shadowBlur = 25;
+    ctx.shadowColor = '#00BFFF';
+    
+    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, size);
+    gradient.addColorStop(0, '#87CEEB');
+    gradient.addColorStop(1, '#4169E1');
+    
+    ctx.fillStyle = gradient;
+    this.drawPolygon(ctx, shape.sides, size);
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#00BFFF';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+  }
+
+  /**
+   * ⭐ GREEN RADIANT SHAPE - Nature energy effects
+   */
+  renderGreenRadiantShape(ctx, shape) {
+    const size = shape.size;
+    const time = Date.now() * 0.001;
+    
+    // Energy aura
+    for (let i = 0; i < 3; i++) {
+      const auraSize = size + (10 * (3 - i));
+      const alpha = 0.15 - (i * 0.04);
+      
+      ctx.fillStyle = `rgba(0, 255, 0, ${alpha})`;
+      ctx.beginPath();
+      ctx.arc(0, 0, auraSize, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Energy particles
+    for (let i = 0; i < 8; i++) {
+      const angle = (Math.PI * 2 * i) / 8 + time;
+      const distance = size + 8 + Math.sin(time * 3 + i) * 4;
+      
+      ctx.fillStyle = '#00FF00';
+      ctx.beginPath();
+      ctx.arc(
+        Math.cos(angle) * distance,
+        Math.sin(angle) * distance,
+        2, 0, Math.PI * 2
+      );
+      ctx.fill();
+    }
+
+    // Main shape
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = '#00FF00';
+    
+    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, size);
+    gradient.addColorStop(0, '#90EE90');
+    gradient.addColorStop(1, '#228B22');
+    
+    ctx.fillStyle = gradient;
+    this.drawPolygon(ctx, shape.sides, size);
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#00FF00';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+
+  /**
+   * Normal shape renderer
+   */
+  renderNormalShape(ctx, shape) {
+    const size = shape.size;
+    
+    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, size);
+    gradient.addColorStop(0, this.lightenColor(shape.color, 30));
+    gradient.addColorStop(1, shape.color);
+    
+    ctx.fillStyle = gradient;
+    ctx.strokeStyle = this.darkenColor(shape.color, 30);
+    ctx.lineWidth = 3;
+    
+    this.drawPolygon(ctx, shape.sides, size);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  /**
+   * Render rainbow sparkles
+   */
+  renderRainbowSparkles(ctx, shape, time) {
+    const sparkleCount = 20;
+    
+    for (let i = 0; i < sparkleCount; i++) {
+      const angle = (Math.PI * 2 * i) / sparkleCount + time * 2;
+      const distance = shape.size + 20 + Math.sin(time * 4 + i) * 15;
+      const sparkleSize = 2 + Math.sin(time * 6 + i) * 1;
+      const hue = (time * 100 + i * 30) % 360;
+      
+      ctx.fillStyle = `hsl(${hue}, 100%, 70%)`;
+      ctx.beginPath();
+      ctx.arc(
+        Math.cos(angle) * distance,
+        Math.sin(angle) * distance,
+        sparkleSize, 0, Math.PI * 2
+      );
+      ctx.fill();
+    }
+  }
+
+  /**
+   * Render transgender sparkles
+   */
+  renderTransgenderSparkles(ctx, shape, time) {
+    const sparkleCount = 25;
+    const prideColors = ['#55CDFC', '#F7A8B8', '#FFFFFF'];
+    
+    for (let i = 0; i < sparkleCount; i++) {
+      const angle = (Math.PI * 2 * i) / sparkleCount + time * 1.5;
+      const distance = shape.size + 25 + Math.sin(time * 3 + i) * 20;
+      const sparkleSize = 3 + Math.sin(time * 5 + i) * 2;
+      const colorIndex = (i + Math.floor(time * 5)) % prideColors.length;
+      
+      ctx.fillStyle = prideColors[colorIndex];
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = prideColors[colorIndex];
+      ctx.beginPath();
+      ctx.arc(
+        Math.cos(angle) * distance,
+        Math.sin(angle) * distance,
+        sparkleSize, 0, Math.PI * 2
+      );
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+  }
+
+  /**
+   * Enhanced particle renderer for rare destruction effects
+   */
+  static renderEnhancedParticle(ctx, particle) {
+    ctx.save();
+    ctx.globalAlpha = particle.lifetime;
+
+    // Special effects for rare particles
+    if (particle.rarity === 'rainbow') {
+      // Rainbow particle with trail
+      if (particle.trail) {
+        ctx.strokeStyle = particle.color;
+        ctx.lineWidth = particle.size;
+        ctx.beginPath();
+        ctx.moveTo(particle.x - particle.vx * 3, particle.y - particle.vy * 3);
+        ctx.lineTo(particle.x, particle.y);
+        ctx.stroke();
+      }
+      
+      // Rainbow cycling color
+      const hue = (Date.now() * 0.1 + particle.x) % 360;
+      particle.color = `hsl(${hue}, 100%, 60%)`;
+      
+      if (particle.glow) {
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = particle.color;
+      }
+      
+      ctx.fillStyle = particle.color;
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+      ctx.fill();
+      
+    } else if (particle.rarity === 'transgender') {
+      // Transgender pride particle effects
+      const prideColors = ['#55CDFC', '#F7A8B8', '#FFFFFF'];
+      const colorIndex = Math.floor(Date.now() * 0.005 + particle.x * 0.01) % prideColors.length;
+      particle.color = prideColors[colorIndex];
+      
+      if (particle.shadowAura) {
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = particle.color;
+      }
+      
+      if (particle.spiralMotion) {
+        // Create spiral motion
+        const spiral = Math.sin(Date.now() * 0.01 + particle.x * 0.1) * 3;
+        particle.x += spiral;
+        particle.y += spiral;
+      }
+      
+      ctx.fillStyle = particle.color;
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, particle.size * 1.5, 0, Math.PI * 2);
+      ctx.fill();
+      
+    } else {
+      // Standard particle rendering for other rarities
+      if (particle.glow) {
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = particle.color;
+      }
+      
+      ctx.fillStyle = particle.color;
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    ctx.restore();
+  }
+
+  /**
+   * Helper: Draw polygon
+   */
+  drawPolygon(ctx, sides, size) {
+    if (sides === 4) {
+      ctx.rect(-size, -size, size * 2, size * 2);
+      return;
+    }
+    
+    const angle = (Math.PI * 2) / sides;
+    ctx.beginPath();
+    
+    for (let i = 0; i < sides; i++) {
+      const x = Math.cos(angle * i - Math.PI / 2) * size;
+      const y = Math.sin(angle * i - Math.PI / 2) * size;
+      
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+    
+    ctx.closePath();
+  }
+
+  /**
+   * Helper: Lighten color
+   */
+  lightenColor(hex, percent) {
+    const num = parseInt(hex.replace('#', ''), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = (num >> 16) + amt;
+    const G = (num >> 8 & 0x00FF) + amt;
+    const B = (num & 0x0000FF) + amt;
+    
+    return '#' + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+      (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+      (B < 255 ? B < 1 ? 0 : B : 255))
+      .toString(16).slice(1);
+  }
+
+  /**
+   * Helper: Darken color
+   */
+  darkenColor(hex, percent) {
+    const num = parseInt(hex.replace('#', ''), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = (num >> 16) - amt;
+    const G = (num >> 8 & 0x00FF) - amt;
+    const B = (num & 0x0000FF) - amt;
+    
+    return '#' + (0x1000000 + (R > 0 ? R : 0) * 0x10000 +
+      (G > 0 ? G : 0) * 0x100 +
+      (B > 0 ? B : 0))
+      .toString(16).slice(1);
+  }
+
+  /**
+   * Helper: Convert hex to rgba
+   */
+  hexToRgba(hex, alpha) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+}
+
 // Export for use in other files
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = ShapeSystem;
@@ -726,4 +1584,14 @@ if (typeof module !== 'undefined' && module.exports) {
 // Make available globally for browser
 if (typeof window !== 'undefined') {
   window.ShapeSystem = ShapeSystem;
+  window.EnhancedShapeVisuals = EnhancedShapeVisuals;
+  
+  // Global flag to indicate enhanced visuals are ready
+  window.enhancedShapeVisualsReady = true;
+  
+  console.log('🌟 Complete Enhanced Shape System loaded!');
+  console.log('✨ Ultra-rare shapes with enhanced visual properties');
+  console.log('🎨 Rainbow and Transgender shapes will display spectacular effects!');
+  console.log('🔧 Enhanced particle systems activated for rare destruction effects!');
+  console.log('🎯 All visual enhancements built in and ready!');
 }
