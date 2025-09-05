@@ -6,8 +6,8 @@
 
 // ==================== GAME CONFIGURATION ====================
 const CONFIG = {
-  WORLD_WIDTH: 30000,
-  WORLD_HEIGHT: 30000,
+  WORLD_WIDTH: 50000,
+  WORLD_HEIGHT: 50000,
   GRID_SIZE: 50,
   PLAYER_SIZE: 30,
   PLAYER_SPEED: 5,
@@ -18,8 +18,8 @@ const CONFIG = {
   BULLET_DAMAGE: 20,
   FIRE_RATE: 200,
   BULLET_LIFETIME: 7000,
-  MAX_SHAPES: 50000,
-  SHAPE_SPAWN_RATE: 50,
+  MAX_SHAPES: 25000, // Keep your preferred high count
+  SHAPE_SPAWN_RATE: 10,
   MAX_PARTICLES: 200 // BUG FIX: Prevent memory leaks
 };
 
@@ -106,6 +106,13 @@ class Particle {
 // ==================== MAIN GAME CLASS ====================
 class Game {
   constructor() {
+    // Initialize game instance guard
+    if (window.gameRunning) {
+      console.warn('Game already running! Use window.game instance.');
+      return window.game;
+    }
+    window.gameRunning = true;
+    
     // BUG FIX: Safe DOM element access
     this.canvas = this.safeGetElement('gameCanvas');
     this.ctx = this.canvas ? this.canvas.getContext('2d') : null;
@@ -114,6 +121,7 @@ class Game {
     
     if (!this.canvas || !this.ctx) {
       console.error('❌ Cannot find game canvas!');
+      window.gameRunning = false;
       return;
     }
     
@@ -124,6 +132,9 @@ class Game {
     this.frameCount = 0;
     this.lastFPSTime = Date.now();
     this.lastStatsUpdate = Date.now();
+    
+    // Store reference globally
+    window.game = this;
     
     this.initializeSystems();
     this.setupCanvas();
@@ -637,6 +648,7 @@ class Game {
       this.frameCount = 0;
       this.lastFPSTime = now;
       this.safeSetText('fps', `FPS: ${this.fps}`);
+      window.lastFPS = this.fps; // For debug panel
     }
   }
   
@@ -756,446 +768,271 @@ class Game {
     });
   }
   
-  // BUG FIX: Optimized shape rendering with proper error handling
+  // BUG FIX: Enhanced shape rendering with proper error handling
   drawEnhancedShape(shape, distToPlayer) {
-    this.ctx.save();
-    this.ctx.translate(shape.x, shape.y);
-    
-    // Get visual properties safely
-    let visualProps = { baseColor: shape.color, strokeWidth: 2, pulseAmount: 1, currentSize: shape.size };
-    
-    if (this.state.shapeSystem?.getShapeVisualProperties) {
+    // Check if enhanced shape visuals are available
+    if (typeof window.EnhancedShapeVisuals !== 'undefined' && window.EnhancedShapeVisuals.drawEnhancedShape) {
       try {
-        visualProps = this.state.shapeSystem.getShapeVisualProperties(shape);
+        window.EnhancedShapeVisuals.drawEnhancedShape(this.ctx, shape, distToPlayer);
       } catch (error) {
-        console.warn('Error getting visual properties, using defaults');
+        console.warn('Enhanced shape rendering failed, falling back to basic:', error);
+        this.drawBasicShape(shape);
       }
+    } else {
+      this.drawBasicShape(shape);
     }
-    
-    // BUG FIX: Optimized rare shape effects with performance limits
-    if (shape.rarity === 'rainbow') {
-      this.drawRainbowEffects(visualProps);
-    } else if (shape.rarity === 'transgender') {
-      this.drawTransgenderEffects(visualProps);
-    } else if (shape.rarity === 'greenRadiant') {
-      this.drawGreenRadiantEffects(visualProps);
-    } else if (shape.rarity === 'blueRadiant') {
-      this.drawBlueRadiantEffects(visualProps);
-    } else if (shape.rarity === 'shadow') {
-      this.drawShadowEffects(shape, visualProps, distToPlayer);
-    }
-    
-    // Draw main shape
-    this.ctx.rotate(shape.angle || 0);
-    const renderSize = visualProps.currentSize * visualProps.pulseAmount;
-    
-    this.ctx.fillStyle = visualProps.baseColor || shape.color;
-    this.ctx.strokeStyle = this.darkenColor(visualProps.baseColor || shape.color);
-    this.ctx.lineWidth = visualProps.strokeWidth;
-    
-    this.drawShapeOutline(shape, renderSize);
-    this.ctx.fill();
-    this.ctx.stroke();
-    
-    // Reset effects
-    this.ctx.shadowBlur = 0;
-    this.ctx.shadowColor = 'transparent';
-    
-    this.ctx.restore();
-    
-    // Health bar for damaged shapes
-    if (shape.health < (shape.maxHealth || shape.health) && 
-        !(shape.rarity === 'shadow' && distToPlayer > 200)) {
-      this.drawShapeHealthBar(shape, renderSize);
-    }
-  }
-  
-  // BUG FIX: Simplified rainbow effects for better performance
-  drawRainbowEffects(visualProps) {
-    const time = Date.now() * 0.001;
-    
-    // Simplified rainbow aura (reduced from 5 to 3 layers)
-    for (let i = 0; i < 3; i++) {
-      const auraRadius = (visualProps.currentSize + i * 20) * visualProps.pulseAmount;
-      const alpha = (0.4 - i * 0.1) * Math.sin(time * 2 + i) * 0.5 + 0.2;
-      
-      const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, auraRadius);
-      const hue = (time * 100 + i * 60) % 360;
-      
-      gradient.addColorStop(0, `hsla(${hue}, 100%, 60%, ${alpha})`);
-      gradient.addColorStop(1, `hsla(${hue}, 100%, 60%, 0)`);
-      
-      this.ctx.fillStyle = gradient;
-      this.ctx.beginPath();
-      this.ctx.arc(0, 0, auraRadius, 0, Math.PI * 2);
-      this.ctx.fill();
-    }
-    
-    // Simplified sparkles (reduced from 20 to 8)
-    for (let i = 0; i < 8; i++) {
-      const angle = (i / 8) * Math.PI * 2 + time;
-      const distance = visualProps.currentSize * 2 + Math.sin(time * 3 + i) * 20;
-      const sparkleX = Math.cos(angle) * distance;
-      const sparkleY = Math.sin(angle) * distance;
-      const hue = (time * 50 + i * 45) % 360;
-      
-      this.ctx.fillStyle = `hsl(${hue}, 100%, 70%)`;
-      this.ctx.beginPath();
-      this.ctx.arc(sparkleX, sparkleY, 2, 0, Math.PI * 2);
-      this.ctx.fill();
-    }
-    
-    this.ctx.shadowColor = '#FF00FF';
-    this.ctx.shadowBlur = 30;
-  }
-  
-  // BUG FIX: Simplified transgender effects
-  drawTransgenderEffects(visualProps) {
-    const time = Date.now() * 0.001;
-    const transColors = ['#55CDFC', '#F7A8B8', '#FFFFFF'];
-    
-    // Simplified pride auras (reduced complexity)
-    for (let i = 0; i < transColors.length; i++) {
-      const auraRadius = (visualProps.currentSize + i * 25) * visualProps.pulseAmount;
-      const alpha = (0.5 - i * 0.15) * Math.sin(time * 1.5 + i) * 0.3 + 0.3;
-      
-      const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, auraRadius);
-      gradient.addColorStop(0, this.hexToRgba(transColors[i], alpha));
-      gradient.addColorStop(1, this.hexToRgba(transColors[i], 0));
-      
-      this.ctx.fillStyle = gradient;
-      this.ctx.beginPath();
-      this.ctx.arc(0, 0, auraRadius, 0, Math.PI * 2);
-      this.ctx.fill();
-    }
-    
-    // Simplified hearts (reduced from 8 to 4)
-    for (let i = 0; i < 4; i++) {
-      const heartAngle = (i / 4) * Math.PI * 2 + time;
-      const heartDistance = visualProps.currentSize * 2.5 + Math.sin(time * 2 + i) * 20;
-      const heartX = Math.cos(heartAngle) * heartDistance;
-      const heartY = Math.sin(heartAngle) * heartDistance;
-      
-      this.ctx.fillStyle = '#FF69B4';
-      this.ctx.beginPath();
-      this.ctx.arc(heartX, heartY, 4, 0, Math.PI * 2);
-      this.ctx.fill();
-    }
-    
-    this.ctx.shadowColor = '#55CDFC';
-    this.ctx.shadowBlur = 40;
-  }
-  
-  drawGreenRadiantEffects(visualProps) {
-    const pulse = Math.sin(Date.now() * 0.005) * 0.3 + 0.7;
-    this.ctx.shadowColor = '#00FF00';
-    this.ctx.shadowBlur = 20 * pulse;
-    
-    const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, visualProps.currentSize * 2);
-    gradient.addColorStop(0, `rgba(0, 255, 0, ${0.3 * pulse})`);
-    gradient.addColorStop(1, 'rgba(0, 255, 0, 0)');
-    
-    this.ctx.fillStyle = gradient;
-    this.ctx.beginPath();
-    this.ctx.arc(0, 0, visualProps.currentSize * 2, 0, Math.PI * 2);
-    this.ctx.fill();
-  }
-  
-  drawBlueRadiantEffects(visualProps) {
-    const pulse = Math.sin(Date.now() * 0.008) * 0.4 + 0.6;
-    this.ctx.shadowColor = '#00BFFF';
-    this.ctx.shadowBlur = 25 * pulse;
-    
-    const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, visualProps.currentSize * 2.2);
-    gradient.addColorStop(0, `rgba(0, 191, 255, ${0.4 * pulse})`);
-    gradient.addColorStop(1, 'rgba(0, 191, 255, 0)');
-    
-    this.ctx.fillStyle = gradient;
-    this.ctx.beginPath();
-    this.ctx.arc(0, 0, visualProps.currentSize * 2.2, 0, Math.PI * 2);
-    this.ctx.fill();
-  }
-  
-  drawShadowEffects(shape, visualProps, distToPlayer) {
-    const maxDistance = 400, safeDistance = 100;
-    let alpha = 1;
-    
-    if (distToPlayer > safeDistance) {
-      if (distToPlayer >= maxDistance) {
-        alpha = 0.05;
-      } else {
-        const fadeProgress = (distToPlayer - safeDistance) / (maxDistance - safeDistance);
-        alpha = Math.max(0.05, 1 - Math.pow(fadeProgress, 0.5));
-      }
-    }
-    
-    this.ctx.shadowColor = '#8B00FF';
-    this.ctx.shadowBlur = 15 * alpha;
-    
-    const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, visualProps.currentSize * 1.5);
-    gradient.addColorStop(0, `rgba(139, 0, 255, ${0.2 * alpha})`);
-    gradient.addColorStop(1, 'rgba(139, 0, 255, 0)');
-    
-    this.ctx.fillStyle = gradient;
-    this.ctx.beginPath();
-    this.ctx.arc(0, 0, visualProps.currentSize * 1.5, 0, Math.PI * 2);
-    this.ctx.fill();
-    
-    visualProps.baseColor = `rgba(50, 0, 100, ${Math.max(0.1, alpha)})`;
-  }
-  
-  drawShapeHealthBar(shape, renderSize) {
-    const barWidth = renderSize * 1.5;
-    const barHeight = 4;
-    const barY = shape.y - renderSize - 12;
-    const healthPercent = shape.health / (shape.maxHealth || shape.health);
-    
-    // Background
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    this.ctx.fillRect(shape.x - barWidth/2, barY, barWidth, barHeight);
-    
-    // Health fill with special colors for ultra-rare shapes
-    let healthColor = '#FF6B6B';
-    if (shape.rarity === 'rainbow') {
-      const hue = (Date.now() * 0.1) % 360;
-      healthColor = `hsl(${hue}, 100%, 60%)`;
-    } else if (shape.rarity === 'transgender') {
-      const colors = ['#55CDFC', '#F7A8B8', '#FFFFFF'];
-      healthColor = colors[Math.floor(Date.now() * 0.001) % colors.length];
-    }
-    
-    this.ctx.fillStyle = healthColor;
-    this.ctx.fillRect(shape.x - barWidth/2, barY, barWidth * healthPercent, barHeight);
   }
   
   drawBasicShape(shape) {
-    try {
-      this.ctx.save();
-      this.ctx.translate(shape.x, shape.y);
-      this.ctx.rotate(shape.angle || 0);
-      
-      this.ctx.fillStyle = shape.color || '#FF6B6B';
-      this.ctx.strokeStyle = this.darkenColor(shape.color || '#FF6B6B');
-      this.ctx.lineWidth = 3;
-      
-      this.drawShapeOutline(shape, shape.size);
-      this.ctx.fill();
-      this.ctx.stroke();
-      
-      this.ctx.restore();
-    } catch (error) {
-      console.error('Error drawing basic shape:', error);
+    this.ctx.save();
+    this.ctx.translate(shape.x, shape.y);
+    this.ctx.rotate(shape.angle || 0);
+    
+    // Create gradient for shape
+    const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, shape.size);
+    gradient.addColorStop(0, this.lightenColor(shape.color, 30));
+    gradient.addColorStop(1, shape.color);
+    
+    this.ctx.fillStyle = gradient;
+    this.ctx.strokeStyle = this.darkenColor(shape.color, 30);
+    this.ctx.lineWidth = 3;
+    
+    // Draw shape based on sides
+    this.ctx.beginPath();
+    if (shape.sides === 4) {
+      this.ctx.rect(-shape.size, -shape.size, shape.size * 2, shape.size * 2);
+    } else {
+      this.drawPolygon(shape.sides, shape.size);
     }
+    this.ctx.fill();
+    this.ctx.stroke();
+    
+    this.ctx.restore();
   }
   
-  drawShapeOutline(shape, size) {
-    this.ctx.beginPath();
-    const sides = shape.sides || 4;
+  drawPolygon(sides, size) {
+    const angle = (Math.PI * 2) / sides;
     
-    if (sides === 4) {
-      this.ctx.rect(-size, -size, size * 2, size * 2);
-    } else {
-      for (let i = 0; i < sides; i++) {
-        const angle = (i / sides) * Math.PI * 2;
-        const x = Math.cos(angle) * size;
-        const y = Math.sin(angle) * size;
-        
-        if (i === 0) {
-          this.ctx.moveTo(x, y);
-        } else {
-          this.ctx.lineTo(x, y);
-        }
+    for (let i = 0; i < sides; i++) {
+      const x = Math.cos(angle * i - Math.PI / 2) * size;
+      const y = Math.sin(angle * i - Math.PI / 2) * size;
+      
+      if (i === 0) {
+        this.ctx.moveTo(x, y);
+      } else {
+        this.ctx.lineTo(x, y);
       }
-      this.ctx.closePath();
     }
+    
+    this.ctx.closePath();
   }
   
   drawProjectiles() {
-    try {
-      this.ctx.fillStyle = '#FFD700';
-      this.ctx.strokeStyle = '#FFA500';
-      this.ctx.lineWidth = 2;
+    this.state.projectiles.forEach(projectile => {
+      this.ctx.save();
       
-      this.state.projectiles.forEach(projectile => {
-        this.ctx.beginPath();
-        this.ctx.arc(projectile.x, projectile.y, projectile.size, 0, Math.PI * 2);
-        this.ctx.fill();
-        this.ctx.stroke();
-      });
-    } catch (error) {
-      console.error('Error drawing projectiles:', error);
-    }
+      // Draw projectile with glow effect
+      this.ctx.fillStyle = '#FFE600';
+      this.ctx.shadowBlur = 10;
+      this.ctx.shadowColor = '#FFE600';
+      this.ctx.beginPath();
+      this.ctx.arc(projectile.x, projectile.y, projectile.size, 0, Math.PI * 2);
+      this.ctx.fill();
+      this.ctx.shadowBlur = 0;
+      
+      this.ctx.restore();
+    });
   }
   
   drawParticles() {
-    try {
-      this.state.particles.forEach(particle => {
-        this.ctx.save();
-        this.ctx.globalAlpha = particle.lifetime || 1;
-        
-        if (particle.glow) {
-          this.ctx.shadowColor = particle.color;
-          this.ctx.shadowBlur = particle.size;
+    this.state.particles.forEach(particle => {
+      // Check if enhanced particle rendering is available
+      if (typeof window.EnhancedShapeVisuals !== 'undefined' && window.EnhancedShapeVisuals.renderEnhancedParticle) {
+        try {
+          window.EnhancedShapeVisuals.renderEnhancedParticle(this.ctx, particle);
+        } catch (error) {
+          this.drawBasicParticle(particle);
         }
-        
-        this.ctx.fillStyle = particle.color;
-        this.ctx.beginPath();
-        this.ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-        this.ctx.fill();
-        
-        this.ctx.restore();
-      });
-    } catch (error) {
-      console.error('Error drawing particles:', error);
-    }
+      } else {
+        this.drawBasicParticle(particle);
+      }
+    });
   }
   
-  // BUG FIX: Improved minimap with error handling
+  drawBasicParticle(particle) {
+    this.ctx.save();
+    this.ctx.globalAlpha = particle.lifetime;
+    
+    if (particle.glow) {
+      this.ctx.shadowBlur = 10;
+      this.ctx.shadowColor = particle.color;
+    }
+    
+    this.ctx.fillStyle = particle.color;
+    this.ctx.beginPath();
+    this.ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+    this.ctx.fill();
+    
+    this.ctx.restore();
+  }
+  
   drawMinimap() {
     if (!this.minimapCtx) return;
     
     try {
-      const ctx = this.minimapCtx;
-      const scale = 176 / Math.max(CONFIG.WORLD_WIDTH, CONFIG.WORLD_HEIGHT);
+      const minimapSize = 176;
+      const scaleX = minimapSize / CONFIG.WORLD_WIDTH;
+      const scaleY = minimapSize / CONFIG.WORLD_HEIGHT;
       
       // Clear minimap
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-      ctx.fillRect(0, 0, 176, 176);
+      this.minimapCtx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+      this.minimapCtx.fillRect(0, 0, minimapSize, minimapSize);
       
-      // Border
-      ctx.strokeStyle = 'rgba(0, 178, 225, 0.5)';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(0, 0, 176, 176);
-      
-      // Draw shapes with rarity-based colors
+      // Draw shapes as dots
+      this.minimapCtx.fillStyle = 'rgba(255, 255, 0, 0.6)';
       this.state.shapes.forEach(shape => {
-        const x = shape.x * scale;
-        const y = shape.y * scale;
-        let color = 'rgba(255, 255, 255, 0.3)';
-        let size = 1;
-        
-        switch(shape.rarity) {
-          case 'greenRadiant': color = '#00FF00'; size = 2; break;
-          case 'blueRadiant': color = '#00BFFF'; size = 3; break;
-          case 'rainbow': 
-            const hue = (Date.now() * 0.1) % 360;
-            color = `hsl(${hue}, 100%, 60%)`;
-            size = 4;
-            break;
-          case 'transgender':
-            const colors = ['#55CDFC', '#F7A8B8', '#FFFFFF'];
-            color = colors[Math.floor(Date.now() * 0.002) % colors.length];
-            size = 5;
-            break;
-          case 'shadow':
-            const dist = Math.sqrt(Math.pow(shape.x - this.state.player.x, 2) + Math.pow(shape.y - this.state.player.y, 2));
-            color = `rgba(139, 0, 255, ${dist > 300 ? 0.2 : 0.8})`;
-            size = 2;
-            break;
-        }
-        
-        ctx.fillStyle = color;
-        ctx.fillRect(x - size/2, y - size/2, size, size);
+        const x = shape.x * scaleX;
+        const y = shape.y * scaleY;
+        this.minimapCtx.beginPath();
+        this.minimapCtx.arc(x, y, 1, 0, Math.PI * 2);
+        this.minimapCtx.fill();
       });
       
       // Draw player
-      ctx.fillStyle = '#00B2E1';
-      const playerX = this.state.player.x * scale;
-      const playerY = this.state.player.y * scale;
-      ctx.beginPath();
-      ctx.arc(playerX, playerY, 3, 0, Math.PI * 2);
-      ctx.fill();
+      const playerX = this.state.player.x * scaleX;
+      const playerY = this.state.player.y * scaleY;
       
-      // View area
-      ctx.strokeStyle = 'rgba(0, 178, 225, 0.3)';
-      ctx.lineWidth = 1;
-      const viewX = this.state.camera.x * scale;
-      const viewY = this.state.camera.y * scale;
-      const viewW = (this.canvas?.width || 800) * scale;
-      const viewH = (this.canvas?.height || 600) * scale;
-      ctx.strokeRect(viewX, viewY, viewW, viewH);
+      this.minimapCtx.fillStyle = '#00B2E1';
+      this.minimapCtx.beginPath();
+      this.minimapCtx.arc(playerX, playerY, 3, 0, Math.PI * 2);
+      this.minimapCtx.fill();
+      
+      // Draw border
+      this.minimapCtx.strokeStyle = 'rgba(0, 178, 225, 0.5)';
+      this.minimapCtx.lineWidth = 2;
+      this.minimapCtx.strokeRect(0, 0, minimapSize, minimapSize);
     } catch (error) {
       console.error('Error drawing minimap:', error);
     }
   }
   
-  // ==================== HELPER FUNCTIONS ====================
-  darkenColor(color) {
+  // ==================== UTILITY FUNCTIONS ====================
+  
+  lightenColor(hex, percent) {
     try {
-      if (!color || color.includes('rgba') || color.includes('rgb')) return color;
+      const num = parseInt(hex.replace('#', ''), 16);
+      const amt = Math.round(2.55 * percent);
+      const R = (num >> 16) + amt;
+      const G = (num >> 8 & 0x00FF) + amt;
+      const B = (num & 0x0000FF) + amt;
       
-      const hex = color.replace('#', '');
-      if (hex.length !== 6) return color;
-      
-      const r = Math.max(0, parseInt(hex.substr(0, 2), 16) * 0.7);
-      const g = Math.max(0, parseInt(hex.substr(2, 2), 16) * 0.7);
-      const b = Math.max(0, parseInt(hex.substr(4, 2), 16) * 0.7);
-      
-      return `rgb(${Math.floor(r)}, ${Math.floor(g)}, ${Math.floor(b)})`;
+      return '#' + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+        (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+        (B < 255 ? B < 1 ? 0 : B : 255))
+        .toString(16).slice(1);
     } catch (error) {
-      return color || '#666666';
+      return hex;
     }
   }
   
-  hexToRgba(hex, alpha) {
+  darkenColor(hex, percent) {
     try {
-      const r = parseInt(hex.slice(1, 3), 16);
-      const g = parseInt(hex.slice(3, 5), 16);
-      const b = parseInt(hex.slice(5, 7), 16);
-      return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, alpha))})`;
+      const num = parseInt(hex.replace('#', ''), 16);
+      const amt = Math.round(2.55 * percent);
+      const R = (num >> 16) - amt;
+      const G = (num >> 8 & 0x00FF) - amt;
+      const B = (num & 0x0000FF) - amt;
+      
+      return '#' + (0x1000000 + (R > 0 ? R : 0) * 0x10000 +
+        (G > 0 ? G : 0) * 0x100 +
+        (B > 0 ? B : 0))
+        .toString(16).slice(1);
     } catch (error) {
-      return `rgba(255, 255, 255, ${alpha})`;
+      return hex;
     }
   }
   
   // ==================== GAME LOOP ====================
   gameLoop(currentTime) {
+    if (!this.running) return;
+    
     try {
-      const deltaTime = Math.min(currentTime - this.lastTime, 50); // BUG FIX: Cap delta time
+      const deltaTime = currentTime - this.lastTime;
       this.lastTime = currentTime;
       
-      if (this.running) {
-        this.update(deltaTime);
-        this.render();
-      }
+      // Cap delta time to prevent large jumps
+      const cappedDelta = Math.min(deltaTime, 50);
+      
+      this.update(cappedDelta);
+      this.render();
       
       requestAnimationFrame((time) => this.gameLoop(time));
     } catch (error) {
-      console.error('Critical error in game loop:', error);
-      // Continue the game loop to prevent complete failure
+      console.error('Error in game loop:', error);
+      // Try to recover by continuing the loop
       requestAnimationFrame((time) => this.gameLoop(time));
     }
   }
+  
+  // ==================== CLEANUP ====================
+  destroy() {
+    this.running = false;
+    window.gameRunning = false;
+    
+    // Remove event listeners
+    try {
+      window.removeEventListener('resize', this.resizeCanvas);
+      
+      if (this.canvas) {
+        this.canvas.removeEventListener('mousemove', null);
+        this.canvas.removeEventListener('mousedown', null);
+        this.canvas.removeEventListener('mouseup', null);
+      }
+      
+      // Clear intervals if any
+      // Note: Game loop uses requestAnimationFrame, so it will stop when this.running = false
+      
+    } catch (error) {
+      console.error('Error during cleanup:', error);
+    }
+    
+    console.log('🧹 Game destroyed and cleaned up');
+  }
 }
 
-// ==================== STARTUP ====================
-window.addEventListener('DOMContentLoaded', () => {
-  try {
-    console.log('🎮 Starting Arras.io Enhanced Edition...');
-    
-    const game = new Game();
-    
-    // Make game available for debugging
-    window.game = game;
-    
-    // BUG FIX: Complete startup message
-    console.log('✅ Arras.io Enhanced Edition with Ultra-Rare Shapes started!');
-    console.log('🌟 Features:');
-    console.log('   ⭐ Green Radiant: Bright green glow (1/50)');
-    console.log('   ✨ Blue Radiant: Intense blue radiance (1/125)'); 
-    console.log('   ☠️ Shadow: Smooth fade-in proximity effect (1/500)');
-    console.log('   🌈 Rainbow: GROWING rainbow with sparkles (1/5000)!');
-    console.log('   🏳️‍⚧️ Transgender: LEGENDARY with pride effects (1/50000)!');
-    console.log('');
-    console.log('🔧 Debug keys: G, B, N, R, T, I, U');
-    console.log('💰 Ultra-Rare Rewards:');
-    console.log('   🌈 Rainbow: 7,500-15,000 XP (75,000-150,000 score!)');
-    console.log('   🏳️‍⚧️ Transgender: 175,000-350,000 XP (1,750,000-3,500,000 score!)');
-    console.log('');
-    console.log('🎯 All bugs fixed! Enjoy the hunt for ultra-rare shapes!');
-    
-  } catch (error) {
-    console.error('❌ Failed to start game:', error);
-    alert('Game failed to start. Please refresh and try again.');
+// ==================== INITIALIZATION ====================
+
+// Prevent multiple instances
+if (typeof window !== 'undefined') {
+  // Wait for DOM to be ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      new Game();
+    });
+  } else {
+    // DOM is already ready
+    new Game();
   }
-});
+  
+  // Add emergency cleanup function
+  window.destroyGame = function() {
+    if (window.game && window.game.destroy) {
+      window.game.destroy();
+      window.game = null;
+    }
+    window.gameRunning = false;
+    console.log('🚨 Emergency game cleanup completed');
+  };
+  
+  // Add restart function
+  window.restartGame = function() {
+    window.destroyGame();
+    setTimeout(() => {
+      new Game();
+    }, 100);
+  };
+  
+  console.log('🎮 Game.js loaded successfully!');
+  console.log('🔧 Debug commands: window.destroyGame(), window.restartGame()');
+}
+
